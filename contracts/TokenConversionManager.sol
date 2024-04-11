@@ -2,21 +2,19 @@
 pragma solidity ^0.8.25;
 
 import "./Commission.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract TokenConversionManager is Commission, ReentrancyGuard {
-    address public conversionAuthorizer; // Authorizer Address for the conversion 
+    address private _conversionAuthorizer; // Authorizer Address for the conversion 
 
     //already used conversion signature from authorizer in order to prevent replay attack
-    mapping (bytes32 => bool) public usedSignatures; 
+    mapping (bytes32 => bool) private _usedSignatures; 
 
     // Conversion Configurations
-    uint256 public perTxnMinAmount;
-    uint256 public perTxnMaxAmount;
-    uint256 public maxSupply;
-
-    // Method Declaration
-    bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
+    uint256 private _perTxnMinAmount;
+    uint256 private _perTxnMaxAmount;
+    uint256 private _maxSupply;
 
     // Events
     event NewAuthorizer(address conversionAuthorizer);
@@ -29,19 +27,19 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     // Modifiers
     modifier checkLimits(uint256 amount) {
         // Check for min, max per transaction limits
-        require(amount >= perTxnMinAmount && amount <= perTxnMaxAmount, "Violates conversion limits");
+        require(amount >= _perTxnMinAmount && amount <= _perTxnMaxAmount, "Violates conversion limits");
         _;
     }
 
     constructor(
-        address _token, 
-        uint8 _nativeTokenPercentage,
-        uint8 _convertTokenPercentage
+        address token, 
+        uint8 nativeTokenPercentage,
+        uint8 convertTokenPercentage
     ) 
-        Commission(_nativeTokenPercentage, _convertTokenPercentage) 
+        Commission(nativeTokenPercentage, convertTokenPercentage) 
     {
-        token = IERC20Burnable(_token);
-        conversionAuthorizer = _msgSender(); 
+        _token = token;
+        _conversionAuthorizer = _msgSender(); 
     }
 
     /**
@@ -50,7 +48,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     function updateAuthorizer(address newAuthorizer) external onlyOwner {
         require(newAuthorizer != address(0), "Invalid operator address");
 
-        conversionAuthorizer = newAuthorizer;
+        _conversionAuthorizer = newAuthorizer;
 
         emit NewAuthorizer(newAuthorizer);
     }
@@ -59,22 +57,22 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     * @dev To update the per transaction limits for the conversion and to provide max total supply 
     */
     function updateConfigurations(
-        uint256 _perTxnMinAmount, 
-        uint256 _perTxnMaxAmount, 
-        uint256 _maxSupply
+        uint256 perTxnMinAmount, 
+        uint256 perTxnMaxAmount, 
+        uint256 maxSupply
     )
         external 
         onlyOwner 
     {
         // Check for the valid inputs
-        require(_perTxnMinAmount > 0 && _perTxnMaxAmount > _perTxnMinAmount && _maxSupply > 0, "Invalid inputs");
+        require(perTxnMinAmount > 0 && perTxnMaxAmount > perTxnMinAmount && maxSupply > 0, "Invalid inputs");
 
         // Update the configurations
-        perTxnMinAmount = _perTxnMinAmount;
-        perTxnMaxAmount = _perTxnMaxAmount;
-        maxSupply = _maxSupply;
+        _perTxnMinAmount = perTxnMinAmount;
+        _perTxnMaxAmount = perTxnMaxAmount;
+        _maxSupply = maxSupply;
 
-        emit UpdateConfiguration(_perTxnMinAmount, _perTxnMaxAmount, _maxSupply);
+        emit UpdateConfiguration(perTxnMinAmount, perTxnMaxAmount, maxSupply);
     }
 
 
@@ -99,7 +97,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
 
         // Check for the Balance
-        require(token.balanceOf(_msgSender()) >= amount, "Not enough balance");
+        require(IERC20(_token).balanceOf(_msgSender()) >= amount, "Not enough balance");
         
         //compose the message which was signed
         bytes32 message = prefixed(
@@ -115,17 +113,25 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         );
 
         // check that the signature is from the authorizer
-        address signAddress = ecrecover(message, v, r, s);
-        require(signAddress == conversionAuthorizer, "Invalid request or signature");
+        require(ecrecover(message, v, r, s) == _conversionAuthorizer, "Invalid request or signature");
 
         //check for replay attack (message signature can be used only once)
-        require(!usedSignatures[message], "Signature has already been used");
-        usedSignatures[message] = true;
+        require(!_usedSignatures[message], "Signature has already been used");
+        _usedSignatures[message] = true;
+        
+        if(commissionInNativeToken) 
+            _checkPayedCommissionInNative(amount);
+        else 
+            // amount to burn = amount - commission
+            // commission is transffered in '_takeCommissionInToken()'
+            amount -= _takeCommissionInToken(amount);
 
         // Burn the tokens on behalf of the Wallet
-        token.burnFrom(_msgSender(), amount);
+        // token.burnFrom(_msgSender(), amount)
+        (bool success, ) = _token.call(abi.encodeWithSelector(0x79cc6790, _msgSender(), amount));
 
-        _takeCommission(commissionInNativeToken, amount);
+        // In case if the burn call fails
+        require(success, "conversionOut Failed");
 
         emit ConversionOut(_msgSender(), conversionId, amount);
     }
@@ -168,32 +174,42 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         );
 
         // check that the signature is from the authorizer
-        address signAddress = ecrecover(message, v, r, s);
-        require(signAddress == conversionAuthorizer, "Invalid request or signature");
+        require(ecrecover(message, v, r, s) == _conversionAuthorizer, "Invalid request or signature");
 
         //check for replay attack (message signature can be used only once)
-        require( ! usedSignatures[message], "Signature has already been used");
-        usedSignatures[message] = true;
+        require(! _usedSignatures[message], "Signature has already been used");
+        _usedSignatures[message] = true;
 
         // Check for the supply
-        require(token.totalSupply() + amount <= maxSupply, "Invalid Amount");
+        require(IERC20(_token).totalSupply() + amount <= _maxSupply, "Invalid Amount");
+
+        if(commissionInNativeToken) 
+            _checkPayedCommissionInNative(amount);
+        else 
+            // amount to mint = amount - commission
+            amount -= _calculateCommissionInToken(amount);
 
         // Mint the tokens and transfer to the User Wallet using the Call function
-        // token.mint(_msgSender(), amount);
-
-        (bool success, ) = address(token).call(abi.encodeWithSelector(0x4e6ec247, to, amount));
+        // token.mint(to, amount);
+        (bool success, ) = _token.call(abi.encodeWithSelector(0x4e6ec247, to, amount));
 
         // In case if the mint call fails
         require(success, "ConversionIn Failed");
 
-        _takeCommission(commissionInNativeToken, amount);
-
-        emit ConversionIn(_msgSender(), conversionId, amount);
+        emit ConversionIn(to, conversionId, amount);
     }
 
     /// builds a prefixed hash to mimic the behavior of ethSign.
     function prefixed(bytes32 hash) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
+    }
+
+    function getconversionAuthorizer() external view returns(address) {
+        return _conversionAuthorizer;
+    }
+
+    function getConversionConfigurations() external view returns(uint256,uint256,uint256) {
+        return(_perTxnMinAmount, _perTxnMaxAmount, _maxSupply);
     }
 
 }

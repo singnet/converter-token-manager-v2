@@ -1,5 +1,3 @@
-# Hardhat minimal project template
-
 ## Installation
 
 Recommended using WSLv2 with LTS Node & NPM version
