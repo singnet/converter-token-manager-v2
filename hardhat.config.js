@@ -7,7 +7,7 @@ require('dotenv').config({ path: '.env'});
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: "0.8.25",
+    version: "0.8.19",
     settings: {
       optimizer: {
         enabled: true,

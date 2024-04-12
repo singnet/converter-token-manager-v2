@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -14,9 +14,14 @@ abstract contract Commission is Ownable {
 
     uint256 private constant ONE_HUNDRED = 100;
 
+    bool private commissionInNativeToken;
+
+    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
+
     event UpdateCommission(bool indexed nativeToken, uint8 newCommissionPercentage);
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
     event NativeCommissionClaim(uint256 claimedBalance);
+    event ChangeComissionType(bool indexed status, uint256 time);
 
     modifier checkPercentageLimit(uint8 amount) {
         require(amount <= 100, "Violates percentage limits");
@@ -27,7 +32,7 @@ abstract contract Commission is Ownable {
         uint8 nativeTokenPercentage, 
         uint8 convertTokenPercentage
     ) 
-        Ownable(_msgSender()) 
+        Ownable() 
         checkPercentageLimit(nativeTokenPercentage) 
         checkPercentageLimit(convertTokenPercentage) 
     {
@@ -37,9 +42,9 @@ abstract contract Commission is Ownable {
             _convertTokenPercentage = convertTokenPercentage; 
     }
 
-    function _checkPayedCommissionInNative(uint256 amount) internal {
+    function _checkPayedCommissionInNative() internal {
         require(
-            msg.value == amount * uint256(_nativeTokenPercentage) / ONE_HUNDRED,
+            msg.value == 1 ether * uint256(_nativeTokenPercentage) / ONE_HUNDRED,
             "Inaccurate payed commission in native token"
         );
     }
@@ -47,12 +52,12 @@ abstract contract Commission is Ownable {
     function _takeCommissionInToken(uint256 amount) internal returns (uint256) {
         uint256 commissionAmount = _calculateCommissionInToken(amount);
 
-        if(commissionAmount > 0) {
+        if (commissionAmount > 0) {
             (bool success, ) = _token.call(
                 abi.encodeWithSelector(
-                    0x23b872dd, 
-                    _msgSender(), 
-                    _commissionReceiver, 
+                    TRANSFER_SELECTOR,
+                    _msgSender(),
+                    _commissionReceiver,
                     commissionAmount
                 )
             );
@@ -70,11 +75,19 @@ abstract contract Commission is Ownable {
         return 0;
     }
 
+    function enableNativeTokenComission(bool enableNativeComission) external onlyOwner {
+        require(commissionInNativeToken != enableNativeComission);
+        commissionInNativeToken = enableNativeComission;
+
+        emit ChangeComissionType(enableNativeComission, block.timestamp);
+    }
+
     function setNativeTokenCommission(uint8 commissionPercentage) 
         external 
         onlyOwner
         checkPercentageLimit(commissionPercentage) 
-    {
+    { 
+        require(commissionInNativeToken);
         _nativeTokenPercentage = commissionPercentage;
 
         emit UpdateCommission(true, commissionPercentage);
@@ -112,5 +125,9 @@ abstract contract Commission is Ownable {
 
     function getConfigurations() external view returns(address, uint8, uint8) {
         return (_token, _nativeTokenPercentage, _convertTokenPercentage);
+    }
+
+    function getComissionType() external view returns(bool) {
+        return commissionInNativeToken;
     }
 }
