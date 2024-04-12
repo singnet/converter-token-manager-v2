@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity ^0.8.19;
 
 import "./Commission.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract TokenConversionManager is Commission, ReentrancyGuard {
-    address private _conversionAuthorizer; // Authorizer Address for the conversion 
+    address private _conversionAuthorizer; // Authorizer Address for the conversion
+
+    bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
+    bytes4 private constant BURN_SELECTOR = bytes4(keccak256("burnFrom(address,uint256)"));
 
     //already used conversion signature from authorizer in order to prevent replay attack
     mapping (bytes32 => bool) private _usedSignatures; 
@@ -86,8 +89,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         bytes32 conversionId, 
         uint8 v, 
         bytes32 r, 
-        bytes32 s,
-        bool commissionInNativeToken
+        bytes32 s
     ) 
         external 
         payable
@@ -119,16 +121,16 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         require(!_usedSignatures[message], "Signature has already been used");
         _usedSignatures[message] = true;
         
-        if(commissionInNativeToken) 
-            _checkPayedCommissionInNative(amount);
-        else 
+        if (getComissionType()) 
+            _checkPayedCommissionInNative();
+        else
             // amount to burn = amount - commission
             // commission is transffered in '_takeCommissionInToken()'
             amount -= _takeCommissionInToken(amount);
 
         // Burn the tokens on behalf of the Wallet
         // token.burnFrom(_msgSender(), amount)
-        (bool success, ) = _token.call(abi.encodeWithSelector(0x79cc6790, _msgSender(), amount));
+        (bool success, ) = _token.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
 
         // In case if the burn call fails
         require(success, "conversionOut Failed");
@@ -147,8 +149,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         bytes32 conversionId, 
         uint8 v, 
         bytes32 r, 
-        bytes32 s,
-        bool commissionInNativeToken
+        bytes32 s
     ) 
         external 
         payable
@@ -183,15 +184,14 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         // Check for the supply
         require(IERC20(_token).totalSupply() + amount <= _maxSupply, "Invalid Amount");
 
-        if(commissionInNativeToken) 
-            _checkPayedCommissionInNative(amount);
+        if (getComissionType()) 
+            _checkPayedCommissionInNative();
         else 
             // amount to mint = amount - commission
             amount -= _calculateCommissionInToken(amount);
 
         // Mint the tokens and transfer to the User Wallet using the Call function
-        // token.mint(to, amount);
-        (bool success, ) = _token.call(abi.encodeWithSelector(0x4e6ec247, to, amount));
+        (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
 
         // In case if the mint call fails
         require(success, "ConversionIn Failed");

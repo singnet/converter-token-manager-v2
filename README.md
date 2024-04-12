@@ -12,7 +12,7 @@ npx hardhat compile
 ```
 ### Run deploy
 ```bash
-npx hardhat run scripts/deploy.js --network siberium
+npx hardhat run scripts/deploy.js --network <network from config>
 ```
 
 ### Recognize contract size
