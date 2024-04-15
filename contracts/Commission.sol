@@ -61,9 +61,18 @@ abstract contract Commission is Ownable {
     }
 
     function _checkPointIndicator(uint32 _indicator) internal {
-        require(_indicator > 0, "Point indicator must be greater than zero");
-        require(_indicator <= 1000000, "Point indicator exceeds maximum allowed value, point indicator is too low");
-        require(_indicator != pointIndicator, "New point indicator must be different from current value");
+        require(
+            _indicator > 0,
+            "Point indicator must be greater than zero"
+        );
+        require(
+            _indicator <= 1000000,
+            "Point indicator exceeds maximum allowed value, point indicator is too low"
+        );
+        require(
+            _indicator != pointIndicator,
+            "New point indicator must be different from current value"
+        );
     }
 
     function _takeCommissionInToken(uint256 amount) internal returns (uint256) {
