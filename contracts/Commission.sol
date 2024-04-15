@@ -12,6 +12,7 @@ abstract contract Commission is Ownable {
     address internal _token; 
     address payable private _commissionReceiver;
 
+    uint256 private constant ONE_HUNDRED = 100;
 
     /**
      * 100 - 1% of 1 ETH = 0.01 ETH
