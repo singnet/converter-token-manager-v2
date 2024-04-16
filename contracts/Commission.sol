@@ -122,11 +122,11 @@ abstract contract Commission is Ownable {
     // returns commission 
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256) {
         if (_convertTokenPercentage > 0) {
-            if (fixTokenCommission) {
-                return fixValueTokenCommission;
-            } else {
-                return amount * uint256(_convertTokenPercentage) / ONE_HUNDRED;
-            }
+            return amount * uint256(_convertTokenPercentage) / ONE_HUNDRED;
+        }
+
+        if (fixTokenCommission) {
+            return fixValueTokenCommission;
         }
            
         return 0;
