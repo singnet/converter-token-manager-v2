@@ -123,7 +123,7 @@ abstract contract Commission is Ownable {
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256) {
         if (_convertTokenPercentage > 0) {
             if (fixTokenCommission) {
-                return amount - fixValueTokenCommission;
+                return fixValueTokenCommission;
             } else {
                 return amount * uint256(_convertTokenPercentage) / ONE_HUNDRED;
             }
@@ -173,7 +173,7 @@ abstract contract Commission is Ownable {
         fixTokenComission = false;
     }
 
-    function changeFixTokensCommission(uint256 newFixCommission) {
+    function changeFixTokensCommission(uint256 newFixCommission) external onlyOwner {
         fixValueTokenCommission = newFixCommission;
         emit UpdateFixTokensCommission(newFixCommission, block.timestamp);
     }
