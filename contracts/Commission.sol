@@ -14,7 +14,11 @@ abstract contract Commission is Ownable {
 
     uint256 private constant ONE_HUNDRED = 100;
 
+    bool private fixTokenComission;
+    uint256 private fixValueTokenCommission;
+
     /**
+     * 
      * 100 - 1% of 1 ETH = 0.01 ETH
      * 10000 - 0.01% of 1 ETH = 0.0001 ETH
      * 1000000 - 0.0001% of 1 ETH = 0.000001 ETH (Default)
@@ -27,13 +31,16 @@ abstract contract Commission is Ownable {
     
     bool private commissionInNativeToken;
 
-    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
+    bytes4 private constant TRANSFERFROM_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
+    bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
+    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
 
     event UpdateCommission(bool indexed nativeToken, uint8 newCommissionPercentage);
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
     event NativeCommissionClaim(uint256 claimedBalance);
     event ChangeComissionType(bool indexed status, uint256 time);
     event UpdatePointIndicator(uint32 newIndicator, uint256 time);
+    event UpdateFixTokensCommission(uint256 newValueFixCommission, uint256 time);
 
     modifier checkPercentageLimit(uint8 amount) {
         require(amount <= 100, "Violates percentage limits");
@@ -76,14 +83,32 @@ abstract contract Commission is Ownable {
         );
     }
 
-    function _takeCommissionInToken(uint256 amount) internal returns (uint256) {
+    function _takeCommissionInTokenOutput(uint256 amount) internal returns (uint256) {
         uint256 commissionAmount = _calculateCommissionInToken(amount);
 
         if (commissionAmount > 0) {
             (bool success, ) = _token.call(
                 abi.encodeWithSelector(
-                    TRANSFER_SELECTOR,
+                    TRANSFERFROM_SELECTOR,
                     _msgSender(),
+                    _commissionReceiver,
+                    commissionAmount
+                )
+            );
+
+            require(success, "Commission transfer failed");
+        }
+        return commissionAmount;
+    }
+
+    function _takeCommissionInTokenInput(uint256 amount) internal returns (uint256) {
+        uint256 commissionAmount = _calculateCommissionInToken(amount);
+
+        // transfer minted commission to receiver
+        if (commissionAmount > 0) {
+            (bool success, ) = _token.call(
+                abi.encodeWithSelector(
+                    TRANSFER_SELECTOR,
                     _commissionReceiver,
                     commissionAmount
                 )
@@ -96,9 +121,14 @@ abstract contract Commission is Ownable {
 
     // returns commission 
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256) {
-        if(_convertTokenPercentage > 0)  
-           return amount * uint256(_convertTokenPercentage) / ONE_HUNDRED;
-        
+        if (_convertTokenPercentage > 0) {
+            if (fixTokenCommission) {
+                return amount - fixValueTokenCommission;
+            } else {
+                return amount * uint256(_convertTokenPercentage) / ONE_HUNDRED;
+            }
+        }
+           
         return 0;
     }
 
@@ -128,6 +158,24 @@ abstract contract Commission is Ownable {
         _convertTokenPercentage = commissionPercentage;
 
         emit UpdateCommission(false, commissionPercentage);
+    }
+
+    function setFixCommissionOfTokens(uint256 tokensCommission) external onlyOwner {
+        require(fixTokenComission == false, "Fix token commission already enabled!");
+
+        fixTokenComission = true;
+        fixValueTokenCommission = tokensCommission;
+    }
+
+    function disableFixTokensCommission() external onlyOwner {
+        require(fixTokenComission == true, "Fix token commission already disabled!");
+
+        fixTokenComission = false;
+    }
+
+    function changeFixTokensCommission(uint256 newFixCommission) {
+        fixValueTokenCommission = newFixCommission;
+        emit UpdateFixTokensCommission(newFixCommission, block.timestamp);
     }
 
     function setCommissionReceiver(address newCommissionReceiver) external onlyOwner {
