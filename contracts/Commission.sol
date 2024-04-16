@@ -15,6 +15,7 @@ abstract contract Commission is Ownable {
     uint256 private constant ONE_HUNDRED = 100;
 
     /**
+     * 
      * 100 - 1% of 1 ETH = 0.01 ETH
      * 10000 - 0.01% of 1 ETH = 0.0001 ETH
      * 1000000 - 0.0001% of 1 ETH = 0.000001 ETH (Default)
@@ -28,6 +29,7 @@ abstract contract Commission is Ownable {
     bool private commissionInNativeToken;
 
     bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
+    bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
 
     event UpdateCommission(bool indexed nativeToken, uint8 newCommissionPercentage);
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
@@ -76,7 +78,7 @@ abstract contract Commission is Ownable {
         );
     }
 
-    function _takeCommissionInToken(uint256 amount) internal returns (uint256) {
+    function _takeCommissionInTokenOutput(uint256 amount) internal returns (uint256) {
         uint256 commissionAmount = _calculateCommissionInToken(amount);
 
         if (commissionAmount > 0) {
@@ -90,6 +92,24 @@ abstract contract Commission is Ownable {
             );
 
             require(success, "Commission transfer failed");
+        }
+        return commissionAmount;
+    }
+
+    function _takeCommissionInTokenInput(uint256 amount) internal returns (uint256) {
+        uint256 commissionAmount = _calculateCommissionInToken(amount);
+
+        // mint commission to receiver
+        if (commissionAmount > 0) {
+            (bool success, ) = _token.call(
+                abi.encodeWithSelector(
+                    MINT_SELECTOR,
+                    _commissionReceiver,
+                    commissionAmount
+                )
+            );
+
+            require(success, "Commission mint failed");
         }
         return commissionAmount;
     }

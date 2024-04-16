@@ -125,12 +125,12 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
             _checkPayedCommissionInNative();
         else
             // amount to burn = amount - commission
-            // commission is transffered in '_takeCommissionInToken()'
-            amount -= _takeCommissionInToken(amount);
+            // commission is transffered in '_takeCommissionInTokenOutput()'
+            _amount -= _takeCommissionInTokenOutput(amount);
 
         // Burn the tokens on behalf of the Wallet
         // token.burnFrom(_msgSender(), amount)
-        (bool success, ) = _token.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
+        (bool success, ) = _token.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), _amount));
 
         // In case if the burn call fails
         require(success, "conversionOut Failed");
@@ -186,17 +186,17 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
 
         if (getComissionType()) 
             _checkPayedCommissionInNative();
-        else 
+        else
             // amount to mint = amount - commission
-            amount -= _calculateCommissionInToken(amount);
+            _amount -= _takeCommissionInTokenInput(amount);
 
         // Mint the tokens and transfer to the User Wallet using the Call function
-        (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
+        (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, _amount));
 
         // In case if the mint call fails
         require(success, "ConversionIn Failed");
 
-        emit ConversionIn(to, conversionId, amount);
+        emit ConversionIn(to, conversionId, _amount);
     }
 
     /// builds a prefixed hash to mimic the behavior of ethSign.
