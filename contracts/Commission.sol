@@ -28,8 +28,9 @@ abstract contract Commission is Ownable {
     
     bool private commissionInNativeToken;
 
-    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
+    bytes4 private constant TRANSFERFROM_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
     bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
+    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
 
     event UpdateCommission(bool indexed nativeToken, uint8 newCommissionPercentage);
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
@@ -84,7 +85,7 @@ abstract contract Commission is Ownable {
         if (commissionAmount > 0) {
             (bool success, ) = _token.call(
                 abi.encodeWithSelector(
-                    TRANSFER_SELECTOR,
+                    TRANSFERFROM_SELECTOR,
                     _msgSender(),
                     _commissionReceiver,
                     commissionAmount
@@ -99,17 +100,17 @@ abstract contract Commission is Ownable {
     function _takeCommissionInTokenInput(uint256 amount) internal returns (uint256) {
         uint256 commissionAmount = _calculateCommissionInToken(amount);
 
-        // mint commission to receiver
+        // transfer minted commission to receiver
         if (commissionAmount > 0) {
             (bool success, ) = _token.call(
                 abi.encodeWithSelector(
-                    MINT_SELECTOR,
+                    TRANSFER_SELECTOR,
                     _commissionReceiver,
                     commissionAmount
                 )
             );
 
-            require(success, "Commission mint failed");
+            require(success, "Commission transfer failed");
         }
         return commissionAmount;
     }
