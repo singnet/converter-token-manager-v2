@@ -200,7 +200,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
                 require(transferSuccess, "Transfer & ConversionIn Failed");
             }
         } else {
-            (success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, _msgSender(), amount));
+            (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, _msgSender(), amount));
             require(success, "ConversionIn Failed");
         }
 
