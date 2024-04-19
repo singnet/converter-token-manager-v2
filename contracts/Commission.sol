@@ -47,12 +47,8 @@ abstract contract Commission is Ownable {
     bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
     bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
 
-    event UpdateCommission(bool indexed nativeToken, uint8 newCommissionPercentage);
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
     event NativeCurrencyCommissionClaim(uint256 claimedBalance, uint256 time);
-    event ChangeComissionType(bool indexed status, uint256 time);
-    event UpdatePointIndicator(uint32 newIndicator, uint256 time);
-
     event UpdateCommissionConfiguration(
         uint256 updateTimestamp,
         bool enableCommission,
@@ -64,7 +60,6 @@ abstract contract Commission is Ownable {
         uint8 ConvertTokenPercentage,
         address newCommissionReceiver
     );
-
     event UpdateTypeCommission(
         uint256 updateTimestamp,
         bool TypeCommission,
@@ -75,12 +70,9 @@ abstract contract Commission is Ownable {
         uint8 ConvertTokenPercentage
     );
     event UpdatePercentageNativeCurrencyCommission(uint256 updateTime, uint8 newPercentage, uint32 newOffset);
-    
     event UpdatePercentageTokensCommission(uint256 updateTime, uint8 newPercentage);
     event UpdateFixTokensCommission(uint256 updateTime, uint256 newFixTokensValueCommisssion);
-
     event UpdateTokenTypeCommission(uint256 updateTime, bool newTypeTokenCommission);
-
 
     modifier checkPercentageLimit(uint8 amount) {
         require(amount <= 100, "Violates percentage limits");
@@ -348,7 +340,6 @@ abstract contract Commission is Ownable {
         commissionSettings.fixValueTokenCommission = newFixTokensValueCommisssion;
         emit UpdateFixTokensCommission(block.timestamp, newFixTokensValueCommisssion);
     }
-
 
     function updatePercentageTokensCommission(uint8 newPercentage)
         external
