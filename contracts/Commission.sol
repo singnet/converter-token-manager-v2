@@ -341,7 +341,10 @@ abstract contract Commission is Ownable {
             commissionSettings.convertTokenPercentage = newPercentage;
             emit UpdatePercentageTokensCommission(block.timestamp, newPercentage);
         }
-        require(newFixTokensValueCommisssion > 0, "Value of fix tokens commission can't be zero");
+        require(
+            newFixTokensValueCommisssion > 0,
+            "The fixed value of the commission in tokens cannot be equal to zero"
+        );
         commissionSettings.fixValueTokenCommission = newFixTokensValueCommisssion;
         emit UpdateFixTokensCommission(block.timestamp, newFixTokensValueCommisssion);
     }
