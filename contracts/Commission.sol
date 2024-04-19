@@ -36,7 +36,7 @@ abstract contract Commission is Ownable {
      *
      * 100 - 1% of 1 ETH = 0.01 ETH
      * 10000 - 0.01% of 1 ETH = 0.0001 ETH
-     * 1000000 - 0.0001% of 1 ETH = 0.000001 ETH (Default)
+     * 1000000 - 0.0001% of 1 ETH = 0.000001 ETH
      * 
      * formula:
      * 1 ETH * nativeTokenPercentage / pointOffset
