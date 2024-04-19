@@ -52,22 +52,22 @@ abstract contract Commission is Ownable {
     event UpdateCommissionConfiguration(
         uint256 updateTimestamp,
         bool enableCommission,
-        bool TypeCommission,
-        bool TypeTokenCommission,
-        uint256 FixValueTokenCommission,
-        uint32 PointOffset,
-        uint8 NativeCurrencyPercentage,
-        uint8 ConvertTokenPercentage,
+        bool typeCommission,
+        bool typeTokenCommission,
+        uint256 fixValueTokenCommission,
+        uint32 pointOffset,
+        uint8 nativeCurrencyPercentage,
+        uint8 convertTokenPercentage,
         address newCommissionReceiver
     );
     event UpdateTypeCommission(
         uint256 updateTimestamp,
-        bool TypeCommission,
-        bool TypeTokenCommission,
-        uint256 FixValueTokenCommission,
-        uint32 PointOffset,
-        uint8 NativeCurrencyPercentage,
-        uint8 ConvertTokenPercentage
+        bool typeCommission,
+        bool typeTokenCommission,
+        uint256 fixValueTokenCommission,
+        uint32 pointOffset,
+        uint8 nativeCurrencyPercentage,
+        uint8 convertTokenPercentage
     );
     event UpdatePercentageNativeCurrencyCommission(uint256 updateTime, uint8 newPercentage, uint32 newOffset);
     event UpdatePercentageTokensCommission(uint256 updateTime, uint8 newPercentage);
