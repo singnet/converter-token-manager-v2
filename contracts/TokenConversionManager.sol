@@ -122,16 +122,17 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         require(!_usedSignatures[message], "Signature has already been used");
         _usedSignatures[message] = true;
         
-        if (getComissionType()) 
+        if (commissionSettings.enableCommission && commissionSettings.commissionType == CommissionType.NativeCurrency) {
             _checkPayedCommissionInNative();
-        else
+        } else if (commissionSettings.enableCommission && commissionSettings.typeCommission) {
             // amount to burn = amount - commission
             // commission is transffered in '_takeCommissionInTokenOutput()'
-            _amount -= _takeCommissionInTokenOutput(amount);
+            amount -= _takeCommissionInTokenOutput(amount);
+        }
 
         // Burn the tokens on behalf of the Wallet
         // token.burnFrom(_msgSender(), amount)
-        (bool success, ) = _token.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), _amount));
+        (bool success, ) = _token.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
 
         // In case if the burn call fails
         require(success, "conversionOut Failed");
@@ -185,20 +186,25 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         // Check for the supply
         require(IERC20(_token).totalSupply() + amount <= _maxSupply, "Invalid Amount");
 
-        if (getComissionType()) {
-            _checkPayedCommissionInNative();
-            (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
-        }
-        else {
-            (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
-            _amount -= _takeCommissionInTokenInput(amount);
-            (bool success, ) = _token.call(abi.encodeWithSelector(TRANSFER_SELECTOR, _msgSender(), _amount));
+        if (commissionSettings.enableCommission) {
+            if (commissionSettings.commissionType == CommissionType.NativeCurrency) {
+                _checkPayedCommissionInNative();
+                (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
+                require(success, "ConversionIn Failed");
+            } else if (commissionSettings.commissionType == CommissionType.FixTokens || commissionSettings.commissionType == CommissionType.PercentageTokens) {
+                (bool mintSuccess, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
+                require(mintSuccess, "Mint & ConversionIn Failed");
+                amount -= _takeCommissionInTokenInput(amount);
+                require(amount > 0, "Invalid amount after commission deduction");
+                (bool transferSuccess, ) = _token.call(abi.encodeWithSelector(TRANSFER_SELECTOR, _msgSender(), amount));
+                require(transferSuccess, "Transfer & ConversionIn Failed");
+            }
+        } else {
+            (success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, _msgSender(), amount));
+            require(success, "ConversionIn Failed");
         }
 
-        // In case if the mint call fails
-        require(success, "ConversionIn Failed");
-
-        emit ConversionIn(to, conversionId, _amount);
+        emit ConversionIn(to, conversionId, amount);
     }
 
     /// builds a prefixed hash to mimic the behavior of ethSign.
