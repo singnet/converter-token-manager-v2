@@ -37,10 +37,25 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
 
     constructor(
         address token, 
-        uint8 nativeTokenPercentage,
-        uint8 convertTokenPercentage
+        bool enableCommission,
+        bool typeCommission,
+        uint8 nativeCurrencyPercentage,
+        uint32 pointOffset,
+        bool typeTokenCommission,
+        uint256 fixValueTokenCommission,
+        uint8 convertTokenPercentage,
+        address commissionReceiver
     ) 
-        Commission(nativeTokenPercentage, convertTokenPercentage) 
+        Commission(
+            enableCommission,
+            typeCommission,
+            nativeCurrencyPercentage,
+            pointOffset,
+            typeTokenCommission,
+            fixValueTokenCommission,
+            convertTokenPercentage,
+            commissionReceiver
+        )
     {
         _token = token;
         _conversionAuthorizer = _msgSender(); 
