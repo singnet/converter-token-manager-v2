@@ -142,12 +142,10 @@ abstract contract Commission is Ownable {
     }
 
     function _checkPayedCommissionInNative() internal {
-        if (commissionSettings.commissionType == CommissionType.NativeCurrency) {
-            require(
-                msg.value == 1 ether * uint256(commissionSettings.nativeCurrencyPercentage) / commissionSettings.pointOffset,
-                "Inaccurate payed commission in native token"
-            );
-        }
+        require(
+            msg.value == 1 ether * uint256(commissionSettings.nativeCurrencyPercentage) / commissionSettings.pointOffset,
+            "Inaccurate payed commission in native token"
+        );
     }
 
     function _takeCommissionInTokenOutput(uint256 amount) internal returns (uint256) {
@@ -191,7 +189,7 @@ abstract contract Commission is Ownable {
             return amount * uint256(commissionSettings.convertTokenPercentage) / ONE_HUNDRED;
         } 
         // If commissionType is not PercentageTokens, it's either FixTokens or Disable
-        return (commissionSettings.commissionType == CommissionType.FixTokens) ? commissionSettings.fixValueTokenCommission : 0;
+        return commissionSettings.fixValueTokenCommission;
     }
 
     function disableCommission() external onlyOwner {
