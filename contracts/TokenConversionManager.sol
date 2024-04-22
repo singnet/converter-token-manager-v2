@@ -37,22 +37,22 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
 
     constructor(
         address token, 
-        bool enableCommission,
+        bool commissionIsEnabled,
         bool typeCommission,
-        uint8 nativeCurrencyPercentage,
-        uint32 pointOffset,
-        bool typeTokenCommission,
-        uint256 fixValueTokenCommission,
         uint8 convertTokenPercentage,
+        uint256 fixedNativeTokenCommission,
+        uint256 fixedNativeTokenCommissionLimit,
+        bool typeTokenCommission,
+        uint256 fixedTokenCommission,
         address commissionReceiver
     ) 
         Commission(
-            enableCommission,
+            commissionIsEnabled,
             typeCommission,
-            nativeCurrencyPercentage,
-            pointOffset,
+            fixedNativeTokenCommission,
+            fixedNativeTokenCommissionLimit,
             typeTokenCommission,
-            fixValueTokenCommission,
+            fixedTokenCommission,
             convertTokenPercentage,
             commissionReceiver
         )
@@ -137,7 +137,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         require(!_usedSignatures[message], "Signature has already been used");
         _usedSignatures[message] = true;
         
-        if (commissionSettings.enableCommission) {
+        if (commissionSettings.commissionIsEnabled) {
             if(commissionSettings.commissionType == CommissionType.NativeCurrency) 
                 _checkPayedCommissionInNative();
             else
@@ -202,7 +202,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         // Check for the supply
         require(IERC20(_token).totalSupply() + amount <= _maxSupply, "Invalid Amount");
 
-        if (commissionSettings.enableCommission) {
+        if (commissionSettings.commissionIsEnabled) {
             if (commissionSettings.commissionType == CommissionType.NativeCurrency) {
                 _checkPayedCommissionInNative();
 

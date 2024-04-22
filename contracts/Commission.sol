@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 abstract contract Commission is Ownable {
 
     uint256 private constant ONE_HUNDRED = 100;
+    uint256 private immutable FIXED_NATIVE_TOKEN_COMMISSION_LIMIT;
     
     enum CommissionType {
         Disable, // disable
@@ -17,31 +18,18 @@ abstract contract Commission is Ownable {
 
     CommissionSettings public commissionSettings;
     struct CommissionSettings {
-        bool enableCommission; // activate/deactivate commission
-        bool typeCommission; // false - commission in ETH, true - commission in tokens
-        uint8 nativeCurrencyPercentage; // percentage for commission in native currency
         uint8 convertTokenPercentage; // percentage for commission in tokens
-        uint32 pointOffset; // point offset indicator for percentage in native currency
+        bool commissionIsEnabled; // activate/deactivate commission
+        bool typeCommission; // false - commission in ETH, true - commission in tokens
         bool typeTokenCommission; // type of commission in tokens: false - fix, true -  percentage
-        uint256 fixValueTokenCommission; // fix value of commission in tokens
+        uint256 fixedNativeTokenCommission; // fixed value of commission in native tokens
+        uint256 fixedTokenCommission; // fixed value of commission in tokens
         address payable commissionReceiver; // commission receiver
         CommissionType commissionType; // global type of commission
     }
     
     // Address of token contract for  
     address internal _token;
-
-    /**
-     * pointOffset:
-     *
-     * 100 - 1% of 1 ETH = 0.01 ETH
-     * 10000 - 0.01% of 1 ETH = 0.0001 ETH
-     * 1000000 - 0.0001% of 1 ETH = 0.000001 ETH
-     * 
-     * formula:
-     * 1 ETH * nativeTokenPercentage / pointOffset
-     * 
-     */
 
     bytes4 private constant TRANSFERFROM_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
     bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
@@ -51,27 +39,25 @@ abstract contract Commission is Ownable {
     event NativeCurrencyCommissionClaim(uint256 claimedBalance, uint256 time);
     event UpdateCommissionConfiguration(
         uint256 updateTimestamp,
-        bool enableCommission,
+        bool commissionIsEnabled,
         bool typeCommission,
         bool typeTokenCommission,
-        uint256 fixValueTokenCommission,
-        uint32 pointOffset,
-        uint8 nativeCurrencyPercentage,
         uint8 convertTokenPercentage,
+        uint256 fixedTokenCommission,
+        uint256 fixedNativeTokenCommission,
         address newCommissionReceiver
     );
     event UpdateTypeCommission(
         uint256 updateTimestamp,
         bool typeCommission,
         bool typeTokenCommission,
-        uint256 fixValueTokenCommission,
-        uint32 pointOffset,
-        uint8 nativeCurrencyPercentage,
-        uint8 convertTokenPercentage
+        uint8 convertTokenPercentage,
+        uint256 fixedTokenCommission,
+        uint256 fixedNativeTokenCommission   
     );
-    event UpdatePercentageNativeCurrencyCommission(uint256 updateTime, uint8 newPercentage, uint32 newOffset);
+    event UpdateFixedNativeTokenCommission(uint256 updateTime, uint256 newFixedNativeTokenCommission);
     event UpdatePercentageTokensCommission(uint256 updateTime, uint8 newPercentage);
-    event UpdateFixTokensCommission(uint256 updateTime, uint256 newFixTokensValueCommisssion);
+    event UpdateFixedTokenCommission(uint256 updateTime, uint256 newFixedTokenCommisssion);
     event UpdateTokenTypeCommission(uint256 updateTime, bool newTypeTokenCommission);
 
     modifier checkPercentageLimit(uint8 amount) {
@@ -79,38 +65,25 @@ abstract contract Commission is Ownable {
         _;
     }
 
-    modifier checkOffsetValue(uint32 newOffsetValue) {
-        require(
-            newOffsetValue == 100 || newOffsetValue == 10000 || newOffsetValue == 1000000,
-            "The offset indicator has an invalid value"
-        );
-        require(
-            commissionSettings.pointOffset != newOffsetValue,
-            "New offset indicator must be different from current value"
-        );
-        _;
-    }
-
     constructor(
-        bool enableCommission,
+        bool commissionIsEnabled,
         bool typeCommission,
-        uint8 nativeCurrencyPercentage,
-        uint32 pointOffset,
+        uint256 fixedNativeTokenCommission,
+        uint256 fixedNativeTokenCommissionLimit,
         bool typeTokenCommission,
-        uint256 fixValueTokenCommission,
+        uint256 fixedTokenCommission,
         uint8 convertTokenPercentage,
         address commissionReceiver
     )
         Ownable()
-        checkPercentageLimit(nativeCurrencyPercentage)
         checkPercentageLimit(convertTokenPercentage)
-        checkOffsetValue(pointOffset)
     {
         commissionSettings.commissionReceiver = payable(commissionReceiver);
+        FIXED_NATIVE_TOKEN_COMMISSION_LIMIT = fixedNativeTokenCommissionLimit;
 
-        if (!enableCommission) return;
+        if (!commissionIsEnabled) return;
 
-        commissionSettings.enableCommission = true;
+        commissionSettings.commissionIsEnabled = true;
 
         if (typeCommission) {
             commissionSettings.typeCommission = true;
@@ -119,31 +92,30 @@ abstract contract Commission is Ownable {
                 commissionSettings.convertTokenPercentage = convertTokenPercentage;
                 commissionSettings.commissionType = CommissionType.PercentageTokens;
             } else {
-                commissionSettings.fixValueTokenCommission = fixValueTokenCommission;
+                commissionSettings.fixedTokenCommission = fixedTokenCommission;
                 commissionSettings.commissionType = CommissionType.FixTokens;
             }
-        } else if (nativeCurrencyPercentage > 0) {
-            commissionSettings.nativeCurrencyPercentage = nativeCurrencyPercentage;
-            commissionSettings.pointOffset = pointOffset;
+        } else if (fixedNativeTokenCommission > 0) {
+            _checkFixedNativeTokenLimit(fixedNativeTokenCommission);
+            commissionSettings.fixedNativeTokenCommission = fixedNativeTokenCommission;
             commissionSettings.commissionType = CommissionType.NativeCurrency;
         }
 
         emit UpdateCommissionConfiguration(
             block.timestamp,
-            enableCommission,
+            commissionIsEnabled,
             typeCommission,
             typeTokenCommission,
-            fixValueTokenCommission,
-            pointOffset,
-            nativeCurrencyPercentage,
             convertTokenPercentage,
+            fixedTokenCommission,
+            fixedNativeTokenCommission,
             commissionReceiver
         );
     }
 
     function _checkPayedCommissionInNative() internal {
         require(
-            msg.value == 1 ether * uint256(commissionSettings.nativeCurrencyPercentage) / commissionSettings.pointOffset,
+            msg.value == commissionSettings.fixedNativeTokenCommission,
             "Inaccurate payed commission in native token"
         );
     }
@@ -189,39 +161,27 @@ abstract contract Commission is Ownable {
             return amount * uint256(commissionSettings.convertTokenPercentage) / ONE_HUNDRED;
         } 
         // If commissionType is not PercentageTokens, it's either FixTokens or Disable
-        return commissionSettings.fixValueTokenCommission;
+        return commissionSettings.fixedTokenCommission;
     }
 
     function disableCommission() external onlyOwner {
-        commissionSettings.typeCommission = false;
-        commissionSettings.typeTokenCommission = false;
-        commissionSettings.fixValueTokenCommission = 0;
-        commissionSettings.pointOffset = 0;
-        commissionSettings.nativeCurrencyPercentage = 0;
-        commissionSettings.convertTokenPercentage = 0;
-        delete commissionSettings.commissionReceiver;
-
-        commissionSettings.enableCommission = false;
-        delete commissionSettings.commissionType;
+        delete commissionSettings;
     }
 
     function updateCommissionConfiguration(
-        bool enableCommission,
+        bool commissionIsEnabled,
         bool newTypeCommission,
         bool newTypeTokenCommission,
-        uint256 newFixValueTokenCommission,
-        uint32 newPointOffset,
-        uint8 newNativeCurrencyPercentage,
-        uint8 newConvertTokenPercentage
+        uint8 newConvertTokenPercentage,
+        uint256 newFixedTokenCommission,
+        uint256 newFixedNativeTokenCommission
     )
         external onlyOwner
-        checkPercentageLimit(newNativeCurrencyPercentage)
         checkPercentageLimit(newConvertTokenPercentage)
-        checkOffsetValue(newPointOffset)
     {
-        if (!enableCommission) return;
+        if (!commissionIsEnabled) return;
 
-        commissionSettings.enableCommission = true;
+        commissionSettings.commissionIsEnabled = true;
 
         if (newTypeCommission) {
             commissionSettings.typeCommission = true;
@@ -230,24 +190,23 @@ abstract contract Commission is Ownable {
                 commissionSettings.convertTokenPercentage = newConvertTokenPercentage;
                 commissionSettings.commissionType = CommissionType.PercentageTokens;
             } else {
-                commissionSettings.fixValueTokenCommission = newFixValueTokenCommission;
+                commissionSettings.fixedTokenCommission = newFixedTokenCommission;
                 commissionSettings.commissionType = CommissionType.FixTokens;
             }
-        } else if (newNativeCurrencyPercentage > 0) {
-            commissionSettings.nativeCurrencyPercentage = newConvertTokenPercentage;
-            commissionSettings.pointOffset = newPointOffset;
+        } else if (newFixedNativeTokenCommission > 0) {
+            _checkFixedNativeTokenLimit(newFixedNativeTokenCommission);
+            commissionSettings.fixedNativeTokenCommission = newFixedNativeTokenCommission;
             commissionSettings.commissionType = CommissionType.NativeCurrency;
         }
 
         emit UpdateCommissionConfiguration(
             block.timestamp,
-            enableCommission,
+            commissionIsEnabled,
             newTypeCommission,
             newTypeTokenCommission,
-            newFixValueTokenCommission,
-            newPointOffset,
-            newNativeCurrencyPercentage,
             newConvertTokenPercentage,
+            newFixedTokenCommission,
+            newFixedNativeTokenCommission,
             commissionSettings.commissionReceiver
         );
     }
@@ -255,17 +214,14 @@ abstract contract Commission is Ownable {
     function updateTypeCommission(
         bool newTypeCommission,
         bool newTypeTokenCommission,
-        uint256 newFixValueTokenCommission,
-        uint32 newPointOffset,
-        uint8 newNativeCurrencyPercentage,
-        uint8 newConvertTokenPercentage
+        uint8 newConvertTokenPercentage,
+        uint256 newFixedTokenCommission,
+        uint256 newFixedNativeTokenCommission
     ) 
         external onlyOwner
-        checkPercentageLimit(newNativeCurrencyPercentage)
         checkPercentageLimit(newConvertTokenPercentage)
-        checkOffsetValue(newPointOffset)
     {
-        require(commissionSettings.enableCommission);
+        require(commissionSettings.commissionIsEnabled);
         delete commissionSettings.commissionType;
 
         if (newTypeCommission) {
@@ -275,12 +231,12 @@ abstract contract Commission is Ownable {
                 commissionSettings.convertTokenPercentage = newConvertTokenPercentage;
                 commissionSettings.commissionType = CommissionType.PercentageTokens;
             } else {
-                commissionSettings.fixValueTokenCommission = newFixValueTokenCommission;
+                commissionSettings.fixedTokenCommission = newFixedTokenCommission;
                 commissionSettings.commissionType = CommissionType.FixTokens;
             }
-        } else if (newNativeCurrencyPercentage > 0) {
-            commissionSettings.nativeCurrencyPercentage = newConvertTokenPercentage;
-            commissionSettings.pointOffset = newPointOffset;
+        } else if (newFixedNativeTokenCommission > 0) {
+            _checkFixedNativeTokenLimit(newFixedNativeTokenCommission);
+            commissionSettings.fixedNativeTokenCommission = newFixedNativeTokenCommission;
             commissionSettings.commissionType = CommissionType.NativeCurrency;
         }
 
@@ -288,38 +244,41 @@ abstract contract Commission is Ownable {
             block.timestamp,
             newTypeCommission,
             newTypeTokenCommission,
-            newFixValueTokenCommission,
-            newPointOffset,
-            newNativeCurrencyPercentage,
-            newConvertTokenPercentage
+            newConvertTokenPercentage,
+            newFixedTokenCommission,
+            newFixedNativeTokenCommission
         );
     }
 
-    function updatePercentageNativeCurrencyCommission(uint8 newPercentage, uint32 newOffset)
+    function updateFixedNativeTokenCommission(uint256 newFixedNativeTokenCommission)
         external
         onlyOwner
-        checkPercentageLimit(newPercentage)
-        checkOffsetValue(newOffset)
     {
         require(
-            commissionSettings.enableCommission && !commissionSettings.typeCommission,
+            commissionSettings.commissionIsEnabled && !commissionSettings.typeCommission,
             "At the current moment commission disabled or active a different commission type"
         );
-        require(newPercentage > 0, "Invalid percentage for this type commission");
-        commissionSettings.nativeCurrencyPercentage = newPercentage;
-        commissionSettings.pointOffset = newOffset;
 
-        emit UpdatePercentageNativeCurrencyCommission(block.timestamp, newPercentage, newOffset);
+        require(newFixedNativeTokenCommission > 0, "Zero value of new commission in native token");
+        _checkFixedNativeTokenLimit(newFixedNativeTokenCommission);
+
+        commissionSettings.fixedNativeTokenCommission = newFixedNativeTokenCommission;
+      
+        emit UpdateFixedNativeTokenCommission(block.timestamp, newFixedNativeTokenCommission);
     }
 
-    function updateTokenTypeCommission(bool newTokenTypeCommission, uint8 newPercentage, uint256 newFixTokensValueCommisssion)
+    function updateTokenTypeCommission(
+        bool newTokenTypeCommission, 
+        uint8 newPercentage, 
+        uint256 newFixedTokenCommisssion
+    )
         external
         onlyOwner
         checkPercentageLimit(newPercentage)
     {
 
         require(
-            commissionSettings.enableCommission &&
+            commissionSettings.commissionIsEnabled &&
             commissionSettings.typeCommission &&
             newTokenTypeCommission != commissionSettings.typeTokenCommission,
             "Update type token commission unavailable"
@@ -332,11 +291,11 @@ abstract contract Commission is Ownable {
             emit UpdatePercentageTokensCommission(block.timestamp, newPercentage);
         }
         require(
-            newFixTokensValueCommisssion > 0,
+            newFixedTokenCommisssion > 0,
             "The fixed value of the commission in tokens cannot be equal to zero"
         );
-        commissionSettings.fixValueTokenCommission = newFixTokensValueCommisssion;
-        emit UpdateFixTokensCommission(block.timestamp, newFixTokensValueCommisssion);
+        commissionSettings.fixedTokenCommission = newFixedTokenCommisssion;
+        emit UpdateFixedTokenCommission(block.timestamp, newFixedTokenCommisssion);
     }
 
     function updatePercentageTokensCommission(uint8 newPercentage)
@@ -345,7 +304,7 @@ abstract contract Commission is Ownable {
         checkPercentageLimit(newPercentage)
     {
         require(
-            commissionSettings.enableCommission && commissionSettings.typeCommission && commissionSettings.typeTokenCommission,
+            commissionSettings.commissionIsEnabled && commissionSettings.typeCommission && commissionSettings.typeTokenCommission,
             "At the current moment commission disabled or active a different commission type"
         );
 
@@ -354,18 +313,18 @@ abstract contract Commission is Ownable {
         emit UpdatePercentageTokensCommission(block.timestamp, newPercentage);
     }
 
-    function updateFixTokensCommission(uint256 newFixTokensValueCommisssion)
+    function updateFixedTokensCommission(uint256 newFixedTokenCommisssion)
         external
         onlyOwner
     {
         require(
-            commissionSettings.enableCommission && commissionSettings.typeCommission && commissionSettings.typeTokenCommission,
+            commissionSettings.commissionIsEnabled && commissionSettings.typeCommission && commissionSettings.typeTokenCommission,
             "At the current moment commission disabled or active a different commission type"
         );
 
-        if (newFixTokensValueCommisssion > 0) commissionSettings.fixValueTokenCommission = newFixTokensValueCommisssion;
+        if (newFixedTokenCommisssion > 0) commissionSettings.fixedTokenCommission = newFixedTokenCommisssion;
 
-        emit UpdateFixTokensCommission(block.timestamp, newFixTokensValueCommisssion);
+        emit UpdateFixedTokenCommission(block.timestamp, newFixedTokenCommisssion);
     }
 
     function setCommissionReceiver(address newCommissionReceiver) external onlyOwner {
@@ -386,29 +345,34 @@ abstract contract Commission is Ownable {
         emit NativeCurrencyCommissionClaim(contractBalance, block.timestamp);
     }
 
+    function _checkFixedNativeTokenLimit(uint256 fixedNativeTokenCommission) private view {
+        require(
+            fixedNativeTokenCommission <= FIXED_NATIVE_TOKEN_COMMISSION_LIMIT, 
+            "Violates native token commission limit"
+        );
+    }
+
     function getCommissionReceiverAddress() external view returns(address) {
         return commissionSettings.commissionReceiver;
     }
 
     function getCommissionSettings() public view returns (
-        bool enableCommission,
+        bool commissionIsEnabled,
         bool typeCommission,
-        uint8 nativeCurrencyPercentage,
         uint8 convertTokenPercentage,
-        uint32 pointOffset,
         bool typeTokenCommisssion,
-        uint256 fixValueTokenCommission,
+        uint256 fixedTokenCommission,
+        uint256 fixedNativeTokenCommission,
         address payable commissionReceiver,
         address token
     ) {
         return (
-            commissionSettings.enableCommission,
+            commissionSettings.commissionIsEnabled,
             commissionSettings.typeCommission,
-            commissionSettings.nativeCurrencyPercentage,
             commissionSettings.convertTokenPercentage,
-            commissionSettings.pointOffset,
             commissionSettings.typeTokenCommission,
-            commissionSettings.fixValueTokenCommission,
+            commissionSettings.fixedTokenCommission,
+            commissionSettings.fixedNativeTokenCommission,
             commissionSettings.commissionReceiver,
             _token
         );
