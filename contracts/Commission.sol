@@ -9,19 +9,15 @@ abstract contract Commission is Ownable {
     uint256 private immutable FIXED_NATIVE_TOKEN_COMMISSION_LIMIT;
     
     enum CommissionType {
-        Disable, // disable
-        NativeCurrency, // commission in native currency
         PercentageTokens, // commission in percentage tokens
-        FixTokens // commission in fix value of tokens
+        FixTokens, // commission in fix value of tokens
+        NativeCurrency // commission in native currency
     }
-    CommissionType public commissionType;
 
     CommissionSettings public commissionSettings;
     struct CommissionSettings {
         uint8 convertTokenPercentage; // percentage for commission in tokens
         bool commissionIsEnabled; // activate/deactivate commission
-        bool typeCommission; // false - commission in ETH, true - commission in tokens
-        bool typeTokenCommission; // type of commission in tokens: false - fix, true -  percentage
         uint256 fixedNativeTokenCommission; // fixed value of commission in native tokens
         uint256 fixedTokenCommission; // fixed value of commission in tokens
         address payable commissionReceiver; // commission receiver
@@ -40,25 +36,23 @@ abstract contract Commission is Ownable {
     event UpdateCommissionConfiguration(
         uint256 updateTimestamp,
         bool commissionIsEnabled,
-        bool typeCommission,
-        bool typeTokenCommission,
         uint8 convertTokenPercentage,
+        uint256 commissionType,
         uint256 fixedTokenCommission,
         uint256 fixedNativeTokenCommission,
         address newCommissionReceiver
     );
     event UpdateTypeCommission(
         uint256 updateTimestamp,
-        bool typeCommission,
-        bool typeTokenCommission,
         uint8 convertTokenPercentage,
+        uint256 commissionType,
         uint256 fixedTokenCommission,
         uint256 fixedNativeTokenCommission   
     );
     event UpdateFixedNativeTokenCommission(uint256 updateTime, uint256 newFixedNativeTokenCommission);
     event UpdatePercentageTokensCommission(uint256 updateTime, uint8 newPercentage);
     event UpdateFixedTokenCommission(uint256 updateTime, uint256 newFixedTokenCommisssion);
-    event UpdateTokenTypeCommission(uint256 updateTime, bool newTypeTokenCommission);
+    event UpdateTokenTypeCommission(uint256 updateTime, uint256 newTypeTokenCommission);
 
     modifier checkPercentageLimit(uint8 amount) {
         require(amount <= 100, "Violates percentage limits");
@@ -67,10 +61,9 @@ abstract contract Commission is Ownable {
 
     constructor(
         bool commissionIsEnabled,
-        bool typeCommission,
+        uint256 commissionType,
         uint256 fixedNativeTokenCommission,
         uint256 fixedNativeTokenCommissionLimit,
-        bool typeTokenCommission,
         uint256 fixedTokenCommission,
         uint8 convertTokenPercentage,
         address commissionReceiver
@@ -85,28 +78,18 @@ abstract contract Commission is Ownable {
 
         commissionSettings.commissionIsEnabled = true;
 
-        if (typeCommission) {
-            commissionSettings.typeCommission = true;
-            if (typeTokenCommission && convertTokenPercentage > 0) {
-                commissionSettings.typeTokenCommission = true;
-                commissionSettings.convertTokenPercentage = convertTokenPercentage;
-                commissionSettings.commissionType = CommissionType.PercentageTokens;
-            } else {
-                commissionSettings.fixedTokenCommission = fixedTokenCommission;
-                commissionSettings.commissionType = CommissionType.FixTokens;
-            }
-        } else if (fixedNativeTokenCommission > 0) {
-            _checkFixedNativeTokenLimit(fixedNativeTokenCommission);
-            commissionSettings.fixedNativeTokenCommission = fixedNativeTokenCommission;
-            commissionSettings.commissionType = CommissionType.NativeCurrency;
-        }
+        _updateCommissionSettings(
+            convertTokenPercentage,
+            commissionType,
+            fixedTokenCommission, 
+            fixedNativeTokenCommission
+        );
 
         emit UpdateCommissionConfiguration(
             block.timestamp,
             commissionIsEnabled,
-            typeCommission,
-            typeTokenCommission,
             convertTokenPercentage,
+            commissionType,
             fixedTokenCommission,
             fixedNativeTokenCommission,
             commissionReceiver
@@ -160,142 +143,98 @@ abstract contract Commission is Ownable {
         if (commissionSettings.commissionType == CommissionType.PercentageTokens) {
             return amount * uint256(commissionSettings.convertTokenPercentage) / ONE_HUNDRED;
         } 
-        // If commissionType is not PercentageTokens, it's either FixTokens or Disable
+        // If commissionType is not PercentageTokens, it's FixTokens 
         return commissionSettings.fixedTokenCommission;
     }
 
     function disableCommission() external onlyOwner {
-        delete commissionSettings;
+        commissionSettings.commissionIsEnabled = false;
     }
 
     function updateCommissionConfiguration(
         bool commissionIsEnabled,
-        bool newTypeCommission,
-        bool newTypeTokenCommission,
         uint8 newConvertTokenPercentage,
+        uint256 newCommissionType,
         uint256 newFixedTokenCommission,
         uint256 newFixedNativeTokenCommission
     )
         external onlyOwner
         checkPercentageLimit(newConvertTokenPercentage)
     {
-        if (!commissionIsEnabled) return;
+        if (!commissionSettings.commissionIsEnabled)
+            commissionSettings.commissionIsEnabled = true;
 
-        commissionSettings.commissionIsEnabled = true;
-
-        if (newTypeCommission) {
-            commissionSettings.typeCommission = true;
-            if (newTypeTokenCommission && newConvertTokenPercentage > 0) {
-                commissionSettings.typeTokenCommission = true;
-                commissionSettings.convertTokenPercentage = newConvertTokenPercentage;
-                commissionSettings.commissionType = CommissionType.PercentageTokens;
-            } else {
-                commissionSettings.fixedTokenCommission = newFixedTokenCommission;
-                commissionSettings.commissionType = CommissionType.FixTokens;
-            }
-        } else if (newFixedNativeTokenCommission > 0) {
-            _checkFixedNativeTokenLimit(newFixedNativeTokenCommission);
-            commissionSettings.fixedNativeTokenCommission = newFixedNativeTokenCommission;
-            commissionSettings.commissionType = CommissionType.NativeCurrency;
-        }
+        _updateCommissionSettings(
+            newConvertTokenPercentage,
+            newCommissionType,
+            newFixedTokenCommission, 
+            newFixedNativeTokenCommission
+        );
 
         emit UpdateCommissionConfiguration(
             block.timestamp,
             commissionIsEnabled,
-            newTypeCommission,
-            newTypeTokenCommission,
             newConvertTokenPercentage,
+            newCommissionType,
             newFixedTokenCommission,
             newFixedNativeTokenCommission,
             commissionSettings.commissionReceiver
         );
     }
 
-    function updateTypeCommission(
-        bool newTypeCommission,
-        bool newTypeTokenCommission,
-        uint8 newConvertTokenPercentage,
-        uint256 newFixedTokenCommission,
+    function updateFixedNativeTokenCommission(
         uint256 newFixedNativeTokenCommission
-    ) 
-        external onlyOwner
-        checkPercentageLimit(newConvertTokenPercentage)
-    {
-        require(commissionSettings.commissionIsEnabled);
-        delete commissionSettings.commissionType;
-
-        if (newTypeCommission) {
-            commissionSettings.typeCommission = true;
-            if (newTypeTokenCommission && newConvertTokenPercentage > 0) {
-                commissionSettings.typeTokenCommission = true;
-                commissionSettings.convertTokenPercentage = newConvertTokenPercentage;
-                commissionSettings.commissionType = CommissionType.PercentageTokens;
-            } else {
-                commissionSettings.fixedTokenCommission = newFixedTokenCommission;
-                commissionSettings.commissionType = CommissionType.FixTokens;
-            }
-        } else if (newFixedNativeTokenCommission > 0) {
-            _checkFixedNativeTokenLimit(newFixedNativeTokenCommission);
-            commissionSettings.fixedNativeTokenCommission = newFixedNativeTokenCommission;
-            commissionSettings.commissionType = CommissionType.NativeCurrency;
-        }
-
-        emit UpdateTypeCommission(
-            block.timestamp,
-            newTypeCommission,
-            newTypeTokenCommission,
-            newConvertTokenPercentage,
-            newFixedTokenCommission,
-            newFixedNativeTokenCommission
-        );
-    }
-
-    function updateFixedNativeTokenCommission(uint256 newFixedNativeTokenCommission)
+    )
         external
         onlyOwner
     {
         require(
-            commissionSettings.commissionIsEnabled && !commissionSettings.typeCommission,
+            commissionSettings.commissionIsEnabled && 
+            commissionSettings.commissionType == CommissionType.NativeCurrency,
             "At the current moment commission disabled or active a different commission type"
         );
-
         require(newFixedNativeTokenCommission > 0, "Zero value of new commission in native token");
+        
         _checkFixedNativeTokenLimit(newFixedNativeTokenCommission);
-
         commissionSettings.fixedNativeTokenCommission = newFixedNativeTokenCommission;
       
         emit UpdateFixedNativeTokenCommission(block.timestamp, newFixedNativeTokenCommission);
     }
 
     function updateTokenTypeCommission(
-        bool newTokenTypeCommission, 
         uint8 newPercentage, 
+        uint256 newTokenTypeCommission,
         uint256 newFixedTokenCommisssion
     )
         external
         onlyOwner
         checkPercentageLimit(newPercentage)
     {
-
         require(
             commissionSettings.commissionIsEnabled &&
-            commissionSettings.typeCommission &&
-            newTokenTypeCommission != commissionSettings.typeTokenCommission,
+            commissionSettings.commissionType != CommissionType.NativeCurrency &&
+            newTokenTypeCommission != uint256(commissionSettings.commissionType),
             "Update type token commission unavailable"
         );
 
         emit UpdateTokenTypeCommission(block.timestamp, newTokenTypeCommission);
-
-        if (newTokenTypeCommission) {
+        
+        if(newTokenTypeCommission == 0) {
             commissionSettings.convertTokenPercentage = newPercentage;
+            commissionSettings.commissionType = CommissionType.PercentageTokens;
+
             emit UpdatePercentageTokensCommission(block.timestamp, newPercentage);
+        } else {
+            require(
+                newFixedTokenCommisssion > 0,
+                "The fixed value of the commission in tokens cannot be equal to zero"
+            );
+
+            commissionSettings.fixedTokenCommission = newFixedTokenCommisssion;
+            commissionSettings.commissionType = CommissionType.FixTokens;
+
+            emit UpdateFixedTokenCommission(block.timestamp, newFixedTokenCommisssion);
         }
-        require(
-            newFixedTokenCommisssion > 0,
-            "The fixed value of the commission in tokens cannot be equal to zero"
-        );
-        commissionSettings.fixedTokenCommission = newFixedTokenCommisssion;
-        emit UpdateFixedTokenCommission(block.timestamp, newFixedTokenCommisssion);
     }
 
     function updatePercentageTokensCommission(uint8 newPercentage)
@@ -304,7 +243,8 @@ abstract contract Commission is Ownable {
         checkPercentageLimit(newPercentage)
     {
         require(
-            commissionSettings.commissionIsEnabled && commissionSettings.typeCommission && commissionSettings.typeTokenCommission,
+            commissionSettings.commissionIsEnabled && 
+            commissionSettings.commissionType == CommissionType.PercentageTokens ,
             "At the current moment commission disabled or active a different commission type"
         );
 
@@ -318,7 +258,8 @@ abstract contract Commission is Ownable {
         onlyOwner
     {
         require(
-            commissionSettings.commissionIsEnabled && commissionSettings.typeCommission && commissionSettings.typeTokenCommission,
+            commissionSettings.commissionIsEnabled && 
+            commissionSettings.commissionType == CommissionType.FixTokens,
             "At the current moment commission disabled or active a different commission type"
         );
 
@@ -345,6 +286,52 @@ abstract contract Commission is Ownable {
         emit NativeCurrencyCommissionClaim(contractBalance, block.timestamp);
     }
 
+    function getCommissionReceiverAddress() external view returns(address) {
+        return commissionSettings.commissionReceiver;
+    }
+
+    function getCommissionSettings() public view returns (
+        bool commissionIsEnabled,
+        uint256 fixedTokenCommission,
+        uint8 convertTokenPercentage,
+        uint256 tokenTypeCommission,
+        uint256 fixedNativeTokenCommission,
+        address payable commissionReceiver,
+        address token
+    ) {
+        return (
+            commissionSettings.commissionIsEnabled,
+            uint256(commissionSettings.commissionType),
+            commissionSettings.convertTokenPercentage,
+            commissionSettings.fixedTokenCommission,
+            commissionSettings.fixedNativeTokenCommission,
+            commissionSettings.commissionReceiver,
+            _token
+        );
+    }
+
+    function _updateCommissionSettings(
+        uint8 convertTokenPercentage,
+        uint256 commissionType,
+        uint256 fixedTokenCommission,
+        uint256 fixedNativeTokenCommission 
+        ) 
+        private 
+    {
+            
+        if (commissionType == 0 && convertTokenPercentage > 0) {
+            commissionSettings.convertTokenPercentage = convertTokenPercentage;
+            commissionSettings.commissionType = CommissionType.PercentageTokens;
+        } else if(commissionType == 1) {
+            commissionSettings.fixedTokenCommission = fixedTokenCommission;
+            commissionSettings.commissionType = CommissionType.FixTokens;
+        } else if (fixedNativeTokenCommission > 0) {
+            _checkFixedNativeTokenLimit(fixedNativeTokenCommission);
+            commissionSettings.fixedNativeTokenCommission = fixedNativeTokenCommission;
+            commissionSettings.commissionType = CommissionType.NativeCurrency;
+        }
+    }
+
     function _checkFixedNativeTokenLimit(uint256 fixedNativeTokenCommission) private view {
         require(
             fixedNativeTokenCommission <= FIXED_NATIVE_TOKEN_COMMISSION_LIMIT, 
@@ -352,29 +339,4 @@ abstract contract Commission is Ownable {
         );
     }
 
-    function getCommissionReceiverAddress() external view returns(address) {
-        return commissionSettings.commissionReceiver;
-    }
-
-    function getCommissionSettings() public view returns (
-        bool commissionIsEnabled,
-        bool typeCommission,
-        uint8 convertTokenPercentage,
-        bool typeTokenCommisssion,
-        uint256 fixedTokenCommission,
-        uint256 fixedNativeTokenCommission,
-        address payable commissionReceiver,
-        address token
-    ) {
-        return (
-            commissionSettings.commissionIsEnabled,
-            commissionSettings.typeCommission,
-            commissionSettings.convertTokenPercentage,
-            commissionSettings.typeTokenCommission,
-            commissionSettings.fixedTokenCommission,
-            commissionSettings.fixedNativeTokenCommission,
-            commissionSettings.commissionReceiver,
-            _token
-        );
-    }
 }

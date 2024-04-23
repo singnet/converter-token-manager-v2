@@ -38,20 +38,18 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     constructor(
         address token, 
         bool commissionIsEnabled,
-        bool typeCommission,
         uint8 convertTokenPercentage,
+        uint256 commissionType,
         uint256 fixedNativeTokenCommission,
         uint256 fixedNativeTokenCommissionLimit,
-        bool typeTokenCommission,
         uint256 fixedTokenCommission,
         address commissionReceiver
     ) 
         Commission(
             commissionIsEnabled,
-            typeCommission,
+            commissionType,
             fixedNativeTokenCommission,
             fixedNativeTokenCommissionLimit,
-            typeTokenCommission,
             fixedTokenCommission,
             convertTokenPercentage,
             commissionReceiver
@@ -212,7 +210,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
                 (bool mintSuccess, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
                 require(mintSuccess, "Mint & ConversionIn Failed");
 
-                amount -= _calculateCommissionInToken(amount);
+                amount -= _takeCommissionInTokenInput(amount);
                 require(amount > 0, "Invalid amount after commission deduction");
 
                 (bool transferSuccess, ) = _token.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, amount));
