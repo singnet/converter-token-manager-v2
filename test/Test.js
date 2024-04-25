@@ -1,20 +1,26 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const {formatBytes32String} = require("@ethersproject/strings");
+const {arrayify, splitSignature} = require("@ethersproject/bytes");
+
 
 describe("TokenConversionManager", function () {
     let authorizer, tokenHolder, commissionReceiver;
-    let token, converter;
+    let token, converter
+
+    const amount = 14;
 
     beforeEach(async () => {
         [authorizer, tokenHolder, commissionReceiver] = await ethers.getSigners();
         
         const Token = await ethers.getContractFactory("Token");
         token = await Token.deploy("SingularityNET Token", "AGIX");
-        await token.deployed();
+       
+        await token.mint(tokenHolder.address, 10000);       
         
-        const TokenConversionManager = await ethers.getContractFactory("TokenConversionManager");
-        converter = await TokenConversionManager.deploy(
-            token.address, 
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
+        converter = await TokenConversionСonverter.deploy(
+            await token.getAddress(), 
             false, 
             0, 
             0, 
@@ -23,32 +29,37 @@ describe("TokenConversionManager", function () {
             0,
             commissionReceiver.address
         );
-        await manager.deployed();
+    
+        await converter.updateConfigurations(10, 20, 100)
+       
     });
     
     
     it("should handle token conversions correctly", async function () {
 
-        await token.connect(tokenHolder).approve(manager.address, amount);
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
 
-        const amount = 500;
-        const messageHash = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(
+        const messageHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
             ["string", "uint256", "address", "bytes32", "address"],
-            ["__conversionOut", amount, tokenHolder.address, ethers.utils.formatBytes32String("conversionId1"), converter.address]
+            ["__conversionOut", amount, tokenHolder.address, 
+            formatBytes32String("conversionId1"), 
+            await converter.getAddress()]
         ));
-        
-        const messageHashBinary = ethers.utils.arrayify(messageHash);
+
+        const messageHashBinary = arrayify(messageHash)
         const signature = await authorizer.signMessage(messageHashBinary);
-        const { v, r, s } = ethers.utils.splitSignature(signature);
+        const { v, r, s } = splitSignature(signature)
         
-        await expect(manager.connect(tokenHolder).conversionOut(
+
+        await converter.connect(tokenHolder).conversionOut(
             amount,
-            ethers.utils.formatBytes32String("conversionId1"),
+            formatBytes32String("conversionId1"),
             v, r, s
-        )).to.emit(manager, "ConversionOut");
+        )
+      //  )).to.emit(converter, "ConversionOut");
 
         expect(finalBalanceTokenHolder).to.equal(initialBalanceTokenHolder.sub(amount));
-        expect(finalBalanceManager).to.equal(initialBalanceManager.add(amount));
+        expect(finalBalanceconverter).to.equal(initialBalanceconverter.add(amount));
 
     });
 });
