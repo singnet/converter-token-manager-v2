@@ -244,7 +244,7 @@ abstract contract Commission is Ownable {
     {
         require(
             commissionSettings.commissionIsEnabled && 
-            commissionSettings.commissionType == CommissionType.PercentageTokens ,
+            commissionSettings.commissionType == CommissionType.PercentageTokens,
             "At the current moment commission disabled or active a different commission type"
         );
 
@@ -329,6 +329,13 @@ abstract contract Commission is Ownable {
             _checkFixedNativeTokenLimit(fixedNativeTokenCommission);
             commissionSettings.fixedNativeTokenCommission = fixedNativeTokenCommission;
             commissionSettings.commissionType = CommissionType.NativeCurrency;
+            emit UpdateTypeCommission(
+                block.timestamp,
+                convertTokenPercentage,
+                commissionType,
+                fixedTokenCommission,
+                fixedNativeTokenCommission   
+            );
         }
     }
 
