@@ -2,7 +2,6 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { formatBytes32String } = require("@ethersproject/strings");
 const { arrayify, splitSignature } = require("@ethersproject/bytes");
-const signFuns = require('./sign');
 var ethereumjsabi = require('ethereumjs-abi')
 var ethereumjsutil = require('@ethereumjs/util');
 const { web3, default: Web3 } = require("web3")
@@ -26,17 +25,17 @@ describe("TokenConversionManager", function () {
         token = await Token.deploy("SingularityNET Token", "AGIX");
        
         await token.mint(tokenHolder.address, 10000);       
-        
+
         const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
         converter = await TokenConversionСonverter.deploy(
-            await token.getAddress(), 
-            false, 
-            0, 
-            0, 
-            1000000000, 
-            0, 
-            0,
-            commissionReceiver.getAddress()
+            await token.getAddress(), // address token, 
+            false, // commissionIsEnabled,
+            1, // convertTokenPercentage
+            0, // commissionType
+            0, // fixedTokenCommission
+            10000000000,  // fixedNativeTokenCommissionLimit
+            0, // fixedNativeTokenCommission
+            commissionReceiver.getAddress() //commissionReceiver
         );
 
         await converter.updateConfigurations(10, 20, 100)
@@ -54,7 +53,7 @@ describe("TokenConversionManager", function () {
 
         console.log("AUTH", await auth.getAddress())
         
-
+        /*
         const messageHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
             ["string", "uint256", "address", "bytes32", "address"],
             ["__conversionOut", amount, await tokenHolder.getAddress(), 
@@ -66,6 +65,7 @@ describe("TokenConversionManager", function () {
             ["string", "bytes32"],
             ["\x19Ethereum Signed Message:\n32", messageHash]
         ));
+        */
         
         
         //const { v, r, s } = splitSignature(signature)
@@ -79,17 +79,19 @@ describe("TokenConversionManager", function () {
         //const v_decimal =  Web3.utils.toDecimal(v);
         //const v_compute = (Web3.utils.toDecimal(v) < 27 ) ? v_decimal + 27 : v_decimal ;
 
-        let message = ethereumjsabi.soliditySHA3(
-        ["string", "uint256", "address", "bytes32", "address"],
-        [
-            "__conversionOut",
-            amount,
-            await tokenHolder.getAddress(), 
+        const messageHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionOut", amount, await tokenHolder.getAddress(), 
             formatBytes32String("conversionId1"), 
-            await converter.getAddress()
-        ]
-        );
+            await converter.getAddress()]
+        ));
+        const msg = arrayify(messageHash);
 
+        const signature = await auth.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        /*
         prefixmsg = ethereumjsabi.soliditySHA3(
             ["string", "bytes32"],
             ["\x19Ethereum Signed Message:\n32", message]
@@ -111,17 +113,19 @@ describe("TokenConversionManager", function () {
         const address = ethereumjsutil.bytesToHex(addressBuffer);
 
         console.log("Recovered Address:", address);
+        */
 
         await converter.connect(tokenHolder).conversionOut(
             amount,
             formatBytes32String("conversionId1"),
-            v_compute, r, s
+            v, r, s
         )
         expect(finalBalanceTokenHolder).to.equal(initialBalanceTokenHolder.sub(amount));
         expect(finalBalanceconverter).to.equal(initialBalanceconverter.add(amount));
 
     }); 
 });
+
 
 describe("Administrative functionality", function () {
 
@@ -143,12 +147,12 @@ describe("Administrative functionality", function () {
         const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), 
-            false, 
-            0, 
-            0, 
-            1000000000, // set limit
-            0, 
-            0,
+            false, // commissionIsEnabled,
+            1, // convertTokenPercentage
+            0, // commissionType
+            0, //fixedNativeTokenCommission
+            100000000000,  // fixedNativeTokenCommissionLimit
+            0, // fixedTokenCommission
             commissionReceiver.getAddress()
         )
     });
@@ -184,16 +188,21 @@ describe("Administrative functionality", function () {
 
     it("Administrative Operation - Setup Commission Configurations", async function () {
 
+        //
+        //PercentageTokens, // commission in percentage tokens
+        //FixTokens, // commission in fix value of tokens
+        //NativeCurrency // commission in native currency
+
         let newCommissionIsEnabled = true;
-        let newCommissionType = 0;
-        let newConvertTokenPercentage = 1;
+        let newCommissionType = 2;
+        let newConvertTokenPercentage = 0; // setup 5% in tokens commission
         let newFixedTokenCommission = 0;
-        let newFixedNativeTokenCommission = 0;
+        let newFixedNativeTokenCommission = 1;
 
         await converter.updateCommissionConfiguration(
             newCommissionIsEnabled,
-            newConvertTokenPercentage,
             newCommissionType,
+            newConvertTokenPercentage,
             newFixedTokenCommission,
             newFixedNativeTokenCommission
         );
@@ -208,135 +217,10 @@ describe("Administrative functionality", function () {
         await expect(
             converter.connect(intruder).updateCommissionConfiguration(
                 newCommissionIsEnabled,
-                newConvertTokenPercentage,
+                0,
                 newCommissionType,
                 newFixedTokenCommission,
                 newFixedNativeTokenCommission
-            )
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
-    it("Administrative Operation - Change percentage for token commission", async function () {
-
-        let newPercentage = 20;
-
-        let newCommissionIsEnabled = true;
-        let newCommissionType = 0;
-        let newConvertTokenPercentage = 1;
-        let newFixedTokenCommission = 0;
-        let newFixedNativeTokenCommission = 0;
-
-        // setup commission in token percentage
-        await converter.updateCommissionConfiguration(
-            newCommissionIsEnabled,
-            newConvertTokenPercentage,
-            newCommissionType,
-            newFixedTokenCommission,
-            newFixedNativeTokenCommission
-        );
-
-        await converter.updatePercentageTokensCommission(
-            newPercentage
-        );
-
-        let updatedCommissionConfigurations = await converter.getCommissionSettings();
-        expect(updatedCommissionConfigurations[0]).to.equal(newCommissionIsEnabled);
-        expect(updatedCommissionConfigurations[1]).to.equal(BigInt(0));
-        expect(updatedCommissionConfigurations[2]).to.equal(BigInt(newPercentage));
-
-        await expect(
-            converter.connect(intruder).updatePercentageTokensCommission(
-                100
-            )
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
-    // 1.1 test for change type token commistion to fix
-    // 1.2 test for change fix tokens commision
-    it("Administrative Operation - Change type for token commission to fix", async function () {
-
-        let newCommissionIsEnabled = true;
-        let newCommissionTypeSetup = 0;
-        let newConvertTokenPercentage = 1;
-        let newFixedTokenCommissionSetup = 0;
-        let newFixedNativeTokenCommissionSetup = 0;
-
-        // setup commission in token percentage
-        await converter.updateCommissionConfiguration(
-            newCommissionIsEnabled,
-            newConvertTokenPercentage,
-            newCommissionTypeSetup,
-            newFixedTokenCommissionSetup,
-            newFixedNativeTokenCommissionSetup
-        );
-
-        let newPercentage = 0;
-        let newCommissionType = 1;
-        let newFixedTokenCommisssion = 100; // in cogs
-
-        // change commision to fix
-        await converter.updateTokenTypeCommission(
-            newPercentage,
-            newCommissionType,
-            newFixedTokenCommisssion
-        );
-
-        let updatedCommissionConfigurations = await converter.getCommissionSettings();
-        expect(updatedCommissionConfigurations[0]).to.equal(newCommissionIsEnabled);
-        expect(updatedCommissionConfigurations[1]).to.equal(BigInt(1));
-        expect(updatedCommissionConfigurations[3]).to.equal(BigInt(newFixedTokenCommisssion));
-
-
-        await converter.updateFixedTokensCommission(
-            1000
-        );
-
-        let updatedCommissionConfigurationsUpdated = await converter.getCommissionSettings();
-        expect(updatedCommissionConfigurationsUpdated[3]).to.equal(BigInt(1000));
-
-        await expect(
-            converter.connect(intruder).updateTokenTypeCommission(
-                100,
-                0,
-                0
-            )
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
-    // 3. test for change native percenrage
-    it("Administrative Operation - Change newFixedNativeTokenCommission", async function () {
-        let newCommissionIsEnabled = true;
-        let newCommissionTypeTwo = 2;
-        let newConvertTokenPercentage = 0;
-        let newFixedTokenCommissionTwo = 0;
-        let newFixedNativeTokenCommissionTwo = 1;
-
-        // setup commission in token percentage
-        await converter.updateCommissionConfiguration(
-            newCommissionIsEnabled,
-            newConvertTokenPercentage,
-            newCommissionTypeTwo,
-            newFixedTokenCommissionTwo,
-            newFixedNativeTokenCommissionTwo
-        );
-
-        let newFixedNativeTokenCommission = 10;
-
-        // setup commission in token percentage
-        await converter.updateFixedNativeTokenCommission(
-            newFixedNativeTokenCommission
-        );
-
-        let updatedCommissionConfigurations = await converter.getCommissionSettings();
-        expect(updatedCommissionConfigurations[4]).to.equal(BigInt(newFixedNativeTokenCommission));
-
-        await expect(
-            converter.connect(intruder).updateCommissionConfiguration(
-                newCommissionIsEnabled,
-                newConvertTokenPercentage,
-                newCommissionType,
-                newFixedTokenCommission,
-                0
             )
         ).to.be.revertedWith("Ownable: caller is not the owner");
     });
@@ -350,7 +234,6 @@ describe("Administrative functionality", function () {
         );
 
         let updatedReceiver = await converter.getCommissionReceiverAddress();
-        //console.log(updatedReceiver)
         expect(updatedReceiver).to.equal(newReceiver);
 
         await expect(

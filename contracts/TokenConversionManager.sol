@@ -47,11 +47,11 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     ) 
         Commission(
             commissionIsEnabled,
+            convertTokenPercentage,
             commissionType,
             fixedNativeTokenCommission,
             fixedNativeTokenCommissionLimit,
             fixedTokenCommission,
-            convertTokenPercentage,
             commissionReceiver
         )
     {
