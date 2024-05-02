@@ -120,8 +120,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
             keccak256(
                 abi.encodePacked(
                     "__conversionOut", 
-                    amount, 
-                    _msgSender(), 
+                    amount,
+                    _msgSender(),
                     conversionId, 
                     this
                 )

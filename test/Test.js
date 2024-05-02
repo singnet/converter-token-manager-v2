@@ -3,15 +3,15 @@ const { ethers } = require("hardhat");
 const { formatBytes32String } = require("@ethersproject/strings");
 const { arrayify, splitSignature } = require("@ethersproject/bytes");
 var ethereumjsabi = require('ethereumjs-abi')
-var ethereumjsutil = require('@ethereumjs/util');
-const { web3, default: Web3 } = require("web3")
+
+const Buffer = require('buffer').Buffer;
 
 
 describe("TokenConversionManager", function () {
     let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
     let token, converter;
 
-    const amount = 14;
+    const amount = 10000000000;
 
     beforeEach(async () => {
         [
@@ -23,8 +23,8 @@ describe("TokenConversionManager", function () {
         
         const Token = await ethers.getContractFactory("Token");
         token = await Token.deploy("SingularityNET Token", "AGIX");
-       
-        await token.mint(tokenHolder.address, 10000);       
+        
+        await token.mint(tokenHolder.address, 1000000000000);  // 10k      
 
         const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
         converter = await TokenConversionСonverter.deploy(
@@ -38,7 +38,7 @@ describe("TokenConversionManager", function () {
             commissionReceiver.getAddress() //commissionReceiver
         );
 
-        await converter.updateConfigurations(10, 20, 100)
+        await converter.updateConfigurations(100000000, 100000000000, 1000000000000) //!! min 1 max 1000 maxs 10000
         await converter.updateAuthorizer(await authorizer.getAddress())
     });
     
@@ -51,78 +51,36 @@ describe("TokenConversionManager", function () {
         await converter.updateAuthorizer(await auth.getAddress())
 
 
-        console.log("AUTH", await auth.getAddress())
-        
-        /*
-        const messageHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
+        console.log("Auth", await auth.getAddress())
+        console.log("TokenHolder", await tokenHolder.getAddress())
+  
+
+        /*const messageHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
+            [ "uint256" ],
+            [ amount ])
+        );*/
+
+        const messageHash = ethereumjsabi.soliditySHA3(
             ["string", "uint256", "address", "bytes32", "address"],
-            ["__conversionOut", amount, await tokenHolder.getAddress(), 
-            formatBytes32String("conversionId1"), 
+            ["__conversionOut", 
+            amount, 
+            await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId1").toString('hex'),
             await converter.getAddress()]
-        ));
-
-        const prefixedMessageHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
-            ["string", "bytes32"],
-            ["\x19Ethereum Signed Message:\n32", messageHash]
-        ));
-        */
-        
-        
-        //const { v, r, s } = splitSignature(signature)
-        //console.log(v, r, s);
-        //console.log(signature);
-
-        //let signatures = signature.substr(2); //remove 0x
-        //const r = '0x' + signatures.slice(0, 64);
-        //const s = '0x' + signatures.slice(64, 128);
-        //const v = '0x' + signatures.slice(128, 130);    // Should be either 27 or 28
-        //const v_decimal =  Web3.utils.toDecimal(v);
-        //const v_compute = (Web3.utils.toDecimal(v) < 27 ) ? v_decimal + 27 : v_decimal ;
-
-        const messageHash = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(
-            ["string", "uint256", "address", "bytes32", "address"],
-            ["__conversionOut", amount, await tokenHolder.getAddress(), 
-            formatBytes32String("conversionId1"), 
-            await converter.getAddress()]
-        ));
+        );
+    
         const msg = arrayify(messageHash);
-
         const signature = await auth.signMessage(msg);
 
         const { v, r, s } = splitSignature(signature);
-
-        /*
-        prefixmsg = ethereumjsabi.soliditySHA3(
-            ["string", "bytes32"],
-            ["\x19Ethereum Signed Message:\n32", message]
-        );
-
-        const signature = await auth.signMessage(prefixmsg);
-
-        let signatures = signature.substr(2); //remove 0x
-        const r = '0x' + signatures.slice(0, 64);
-        const s = '0x' + signatures.slice(64, 128);
-        const v = '0x' + signatures.slice(128, 130);    // Should be either 27 or 28
-        const v_decimal =  Web3.utils.toDecimal(v);
-        const v_compute = (Web3.utils.toDecimal(v) < 27 ) ? v_decimal + 27 : v_decimal ;
-
-        var split = ethereumjsutil.fromRpcSig(signature);
-        var publicKey = ethereumjsutil.ecrecover(message, split.v, split.r, split.s);
-
-        const addressBuffer = ethereumjsutil.pubToAddress(publicKey);
-        const address = ethereumjsutil.bytesToHex(addressBuffer);
-
-        console.log("Recovered Address:", address);
-        */
-
+        
         await converter.connect(tokenHolder).conversionOut(
             amount,
             formatBytes32String("conversionId1"),
             v, r, s
         )
-        expect(finalBalanceTokenHolder).to.equal(initialBalanceTokenHolder.sub(amount));
-        expect(finalBalanceconverter).to.equal(initialBalanceconverter.add(amount));
-
+        const initBalance = 1000000000000;
+        expect(BigInt(initBalance-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
     }); 
 });
 
