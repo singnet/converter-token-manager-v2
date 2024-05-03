@@ -6,10 +6,17 @@ Recommended using WSLv2 with LTS Node & NPM version
 ```bash
 npm install
 ```
+
 ### Compile contracts
 ```bash
 npx hardhat compile
 ```
+
+### Run Tests
+```bash
+npx hardhat test
+```
+
 ### Run deploy
 ```bash
 npx hardhat run scripts/deploy.js --network <network from config>
