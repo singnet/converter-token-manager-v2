@@ -43,6 +43,14 @@ abstract contract Commission is Ownable {
         address newCommissionReceiver
     );
 
+    modifier isCommissionReceiver(address caller) {
+        require(
+            _msgSender() == commissionSettings.commissionReceiver,
+            "Signer is not a commission receiver"
+        );
+        _;
+    }
+
     modifier checkPercentageLimit(uint8 amount) {
         require(amount <= 100, "Violates percentage limits");
         _;
@@ -179,7 +187,17 @@ abstract contract Commission is Ownable {
         commissionSettings.commissionReceiver = payable(newCommissionReceiver);
     }
 
-    function claimNativeCurrencyCommission() external onlyOwner {
+    function sendNativeCurrencyCommission() external onlyOwner {
+        uint256 contractBalance = address(this).balance;
+        require(contractBalance > 0);
+
+        (bool success,) = (commissionSettings.commissionReceiver).call{value: contractBalance}("");
+        require(success, "Commission claim failed");
+        
+        emit NativeCurrencyCommissionClaim(contractBalance, block.timestamp);
+    }
+
+    function claimNativeCurrencyCommission() external isCommissionReceiver(_msgSender()) {
         uint256 contractBalance = address(this).balance;
         require(contractBalance > 0);
 
