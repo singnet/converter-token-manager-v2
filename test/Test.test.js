@@ -399,6 +399,11 @@ describe("TokenConversionManager with commission in native currency", function (
         .to
         .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
     }); 
+
+    // TODO: Add test for withdraw native currency commission
+    it("Should handle correctly withdraw commission in native currency", async function () {
+
+    }); 
 });
 
 describe("Administrative functionality", function () {
