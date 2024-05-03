@@ -167,7 +167,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         bytes32 r, 
         bytes32 s
     ) 
-        external 
+        external
         payable
         checkLimits(amount) 
         nonReentrant 
