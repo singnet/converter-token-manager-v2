@@ -264,8 +264,8 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
         );
 
   
-        console.log(await token.balanceOf(await commissionReceiver.getAddress()))
-        console.log("holder balance: ",await token.balanceOf(await tokenHolder.getAddress()))
+        //console.log(await token.balanceOf(await commissionReceiver.getAddress()))
+        //console.log("holder balance: ",await token.balanceOf(await tokenHolder.getAddress()))
 
         expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
         expect(BigInt(fixedTokenCommission_)).to.equal(BigInt(await token.balanceOf(await commissionReceiver.getAddress())));
@@ -368,7 +368,7 @@ describe("TokenConversionManager with commission in native currency", function (
             formatBytes32String("conversionId"),
             v, r, s,{value: fixedNativeTokenCommission_}
         )
-        console.log(await ethers.provider.getBalance(await converter.getAddress()))
+        //console.log(await ethers.provider.getBalance(await converter.getAddress()))
 
         expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
         expect(BigInt(fixedNativeTokenCommission_))
@@ -407,7 +407,7 @@ describe("TokenConversionManager with commission in native currency", function (
             formatBytes32String("conversionId"),
             v, r, s, {value: fixedNativeTokenCommission_}
         )
-        console.log(await ethers.provider.getBalance(await converter.getAddress()))
+        //console.log(await ethers.provider.getBalance(await converter.getAddress()))
 
         expect(BigInt(initBalanceBeforeConversionIn+amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
         expect(BigInt(fixedNativeTokenCommission_))
@@ -421,14 +421,81 @@ describe("TokenConversionManager with commission in native currency", function (
             );
     }); 
 
-    // TODO: Add test for send native currency commission
     it("Should handle correctly send commission in native currency to commission receiver", async function () {
-        // converter.sendNativeCurrencyCommission()
+
+        const [ authorizer ] = await ethers.getSigners();
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await converter.connect(tokenHolder).conversionIn(
+            tokenHolder.getAddress(),
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s, {value: fixedNativeTokenCommission_}
+        );
+
+        const balanceBeforeSendCommission = await ethers.provider.getBalance(await converter.getAddress());
+
+        await converter.sendNativeCurrencyCommission();
+
+        expect(BigInt(balanceBeforeSendCommission)-BigInt(fixedNativeTokenCommission_))
+        .to
+        .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
     });
 
     // TODO: Add test for claim native currency commission
     it("Should handle correctly claim commission in native currency by commission receiver", async function () {
-        // converter.claimNativeCurrencyCommission()
+
+        const [ authorizer, intruder ] = await ethers.getSigners();
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await converter.connect(tokenHolder).conversionIn(
+            tokenHolder.getAddress(),
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s, {value: fixedNativeTokenCommission_}
+        );
+
+        const balanceBeforeClaimCommission = await ethers.provider.getBalance(await converter.getAddress());
+
+        await converter.connect(commissionReceiver).claimNativeCurrencyCommission();
+
+        expect(BigInt(balanceBeforeClaimCommission)-BigInt(fixedNativeTokenCommission_))
+        .to
+        .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
+
+
+        await expect(
+            converter.connect(intruder).claimNativeCurrencyCommission()
+        ).to.be.revertedWith("Signer is not a commission receiver");
+
     }); 
 });
 
