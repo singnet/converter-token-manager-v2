@@ -400,12 +400,12 @@ describe("TokenConversionManager with commission in native currency", function (
         .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
     }); 
 
-    // TODO: Add test for withdraw native currency commission
+    // TODO: Add test for send native currency commission
     it("Should handle correctly send commission in native currency to commission receiver", async function () {
         // converter.sendNativeCurrencyCommission()
     });
 
-    // TODO: Add test for withdraw native currency commission
+    // TODO: Add test for claim native currency commission
     it("Should handle correctly claim commission in native currency by commission receiver", async function () {
         // converter.claimNativeCurrencyCommission()
     }); 
