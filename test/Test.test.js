@@ -401,8 +401,13 @@ describe("TokenConversionManager with commission in native currency", function (
     }); 
 
     // TODO: Add test for withdraw native currency commission
-    it("Should handle correctly withdraw commission in native currency", async function () {
+    it("Should handle correctly send commission in native currency to commission receiver", async function () {
+        // converter.sendNativeCurrencyCommission()
+    });
 
+    // TODO: Add test for withdraw native currency commission
+    it("Should handle correctly claim commission in native currency by commission receiver", async function () {
+        // converter.claimNativeCurrencyCommission()
     }); 
 });
 
