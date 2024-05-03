@@ -202,6 +202,8 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
     let token, converter;
 
     const amount = 10000000000;
+    const fixedNativeTokenCommission_ = 200
+    const fixedTokenCommission_ = 100
 
     beforeEach(async () => {
         [
@@ -213,6 +215,8 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
         
         const Token = await ethers.getContractFactory("Token");
         token = await Token.deploy("SingularityNET Token", "AGIX");
+
+       
         
         await token.mint(tokenHolder.address, 1000000000000);  // 10k      
 
@@ -222,9 +226,9 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
             true, // commissionIsEnabled,
             0, // convertTokenPercentage
             1, // commissionType
-            100000, // fixedTokenCommission
+            fixedNativeTokenCommission_, //  fixedNativeTokenCommission
             10000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedNativeTokenCommission
+            fixedTokenCommission_, // fixedTokenCommission
             commissionReceiver.getAddress() //commissionReceiver
         );
 
@@ -259,17 +263,19 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
             v, r, s
         );
 
-        console.log(BigInt(initBalanceBeforeConversionOut-amount-100000));
+  
         console.log(await token.balanceOf(await commissionReceiver.getAddress()))
+        console.log("holder balance: ",await token.balanceOf(await tokenHolder.getAddress()))
 
-        expect(BigInt(initBalanceBeforeConversionOut-amount-100000)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt(100000)).to.equal(BigInt(await token.balanceOf(await commissionReceiver.getAddress())));
+        expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
+        expect(BigInt(fixedTokenCommission_)).to.equal(BigInt(await token.balanceOf(await commissionReceiver.getAddress())));
     }); 
 
     it("Should handle token conversionIn correctly with fix amount tokens commission", async function () {
 
         const [ authorizer ] = await ethers.getSigners();
         const initBalanceBeforeConversionIn = 1000000000000;
+                                           // 10000000000 
 
         await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
         await converter.updateAuthorizer(await authorizer.getAddress())
@@ -292,8 +298,9 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
             formatBytes32String("conversionId"),
             v, r, s
         )
-        expect(BigInt(initBalanceBeforeConversionIn+amount-(amount/100*1))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt(100000)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
+
+        expect(BigInt(initBalanceBeforeConversionIn+(amount-fixedTokenCommission_))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
+        expect(BigInt(fixedTokenCommission_)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
     }); 
 });
 
@@ -302,6 +309,8 @@ describe("TokenConversionManager with commission in native currency", function (
     let token, converter;
 
     const amount = 10000000000;
+    const fixedNativeTokenCommission_ = 200
+    const fixedTokenCommission_ = 100
 
     beforeEach(async () => {
         [
@@ -322,9 +331,9 @@ describe("TokenConversionManager with commission in native currency", function (
             true, // commissionIsEnabled,
             0, // convertTokenPercentage
             2, // commissionType
-            0, // fixedTokenCommission
+            fixedNativeTokenCommission_, // fixedNativeTokenCommission
             10000000000,  // fixedNativeTokenCommissionLimit
-            10000000, // fixedNativeTokenCommission
+            fixedTokenCommission_, // fixedTokenCommission
             commissionReceiver.getAddress() //commissionReceiver
         );
 
@@ -353,17 +362,23 @@ describe("TokenConversionManager with commission in native currency", function (
 
         const { v, r, s } = splitSignature(signature);
         
+       
         await converter.connect(tokenHolder).conversionOut(
             amount,
             formatBytes32String("conversionId"),
-            v, r, s
+            v, r, s,{value: fixedNativeTokenCommission_}
         )
         console.log(await ethers.provider.getBalance(await converter.getAddress()))
 
         expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt(10000000))
-        .to
-        .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
+        expect(BigInt(fixedNativeTokenCommission_))
+            .to.equal(
+                BigInt(
+                    await ethers.provider.getBalance(
+                        await converter.getAddress()
+                    )
+                )
+            );
     }); 
 
     it("Should handle token conversionIn correctly with commission in native currency", async function () {
@@ -390,14 +405,20 @@ describe("TokenConversionManager with commission in native currency", function (
             tokenHolder.getAddress(),
             amount,
             formatBytes32String("conversionId"),
-            v, r, s
+            v, r, s, {value: fixedNativeTokenCommission_}
         )
         console.log(await ethers.provider.getBalance(await converter.getAddress()))
 
         expect(BigInt(initBalanceBeforeConversionIn+amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt(10000000))
-        .to
-        .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
+        expect(BigInt(fixedNativeTokenCommission_))
+            .to
+            .equal(
+                BigInt(
+                    await ethers.provider.getBalance(
+                        await converter.getAddress()
+                    )
+                )
+            );
     }); 
 
     // TODO: Add test for send native currency commission
