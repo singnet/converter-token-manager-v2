@@ -39,20 +39,26 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         address token, 
         bool commissionIsEnabled,
         uint8 convertTokenPercentage,
+        uint8 receiverCommissionProportion,
+        uint8 bridgeOwnerCommissionProportion,
         uint256 commissionType,
         uint256 fixedNativeTokenCommission,
         uint256 fixedNativeTokenCommissionLimit,
         uint256 fixedTokenCommission,
-        address commissionReceiver
+        address payable commissionReceiver,
+        address payable bridgeOwner
     ) 
         Commission(
             commissionIsEnabled,
             convertTokenPercentage,
+            receiverCommissionProportion,
+            bridgeOwnerCommissionProportion,
             commissionType,
             fixedNativeTokenCommission,
             fixedNativeTokenCommissionLimit,
             fixedTokenCommission,
-            commissionReceiver
+            commissionReceiver,
+            bridgeOwner
         )
     {
         _token = token;
