@@ -59,6 +59,8 @@ abstract contract Commission is Ownable {
         _;
     }
 
+    // convertTokenPercentage <= 1000 in order to represent 
+    // floating point fees with one decimal place
     modifier checkPercentageLimit(uint8 amount) {
         require(amount <= ONE_THOUSAND, "Violates percentage limits");
         _;
@@ -132,7 +134,7 @@ abstract contract Commission is Ownable {
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
             _calculateCommissionInToken(amount);
 
-        (bool success1, ) = _token.call(
+        (bool transferToReceiver, ) = _token.call(
             abi.encodeWithSelector(
                 TRANSFERFROM_SELECTOR,
                 _msgSender(),
@@ -140,7 +142,7 @@ abstract contract Commission is Ownable {
                 commissionSum - commissionAmountBridgeOwner
             )
         );
-        (bool success2, ) = _token.call(
+        (bool transferToBridgeOwner, ) = _token.call(
             abi.encodeWithSelector(
                 TRANSFERFROM_SELECTOR,
                 _msgSender(),
@@ -148,7 +150,7 @@ abstract contract Commission is Ownable {
                 commissionAmountBridgeOwner
             )
         );
-        require(success1 && success2, "Commission transfer failed");
+        require(transferToReceiver && transferToBridgeOwner, "Commission transfer failed");
 
         return commissionSum;
     }
@@ -160,7 +162,6 @@ abstract contract Commission is Ownable {
         (bool transferToReceiver, ) = _token.call(
             abi.encodeWithSelector(
                 TRANSFER_SELECTOR,
-                _msgSender(),
                 commissionSettings.receiverCommission,
                 commissionSum - commissionAmountBridgeOwner
             )
@@ -169,7 +170,6 @@ abstract contract Commission is Ownable {
         (bool transferToBridgeOwner, ) = _token.call(
             abi.encodeWithSelector(
                 TRANSFER_SELECTOR,
-                _msgSender(),
                 commissionSettings.bridgeOwner,
                 commissionAmountBridgeOwner
             )
