@@ -18,6 +18,8 @@ Attention: Also, the commission is distributed between the two recipients in a s
 
 3. Contract allowed to change any settings: commission receivers, value of commision, min, max amount of conversion, etc
 
+A detailed description of the contract's capabilities and mechanics of its use can be found in the [document](https://docs.google.com/document/d/1eyqZTU7vKpZ077GCq9VA9RCwvlW_M6825YjYtDXvMbE/edit?usp=sharing).
+
 ### Installation dependencies
 ```bash
 npm install
@@ -28,14 +30,12 @@ npm install
 npx hardhat compile
 ```
 
-!OUTDATED!
 ### Run Tests
 ```bash
 npx hardhat test
 ```
 
-!OUTDATED!
-### Run deploy
+### Run deploy !OUTDATED!
 ```bash
 npx hardhat run scripts/deploy.js --network <network from config>
 ```
@@ -44,6 +44,3 @@ npx hardhat run scripts/deploy.js --network <network from config>
 ```bash
 npx hardhat size-contracts
 ```
-
-
-!OUTDATED! A detailed description of the contract's capabilities and mechanics of its use can be found in the [document](https://docs.google.com/document/d/1eyqZTU7vKpZ077GCq9VA9RCwvlW_M6825YjYtDXvMbE/edit?usp=sharing).
