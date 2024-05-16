@@ -270,8 +270,7 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
     it("Should handle token conversionIn correctly with fix amount tokens commission", async function () {
 
         const [ authorizer ] = await ethers.getSigners();
-        const initBalanceBeforeConversionIn = 1000000000000;
-                                           // 10000000000 
+        const initBalanceBeforeConversionIn = 1000000000000; 
 
         await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
         await converter.updateAuthorizer(await authorizer.getAddress())
@@ -407,7 +406,6 @@ describe("TokenConversionManager with commission in native currency", function (
             formatBytes32String("conversionId"),
             v, r, s, {value: fixedNativeTokenCommission_}
         )
-        //console.log(await ethers.provider.getBalance(await converter.getAddress()))
 
         expect(BigInt(initBalanceBeforeConversionIn+amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
         expect(BigInt(fixedNativeTokenCommission_))

@@ -28,14 +28,12 @@ npm install
 npx hardhat compile
 ```
 
-!OUTDATED!
 ### Run Tests
 ```bash
 npx hardhat test
 ```
 
-!OUTDATED!
-### Run deploy
+### Run deploy !OUTDATED!
 ```bash
 npx hardhat run scripts/deploy.js --network <network from config>
 ```
