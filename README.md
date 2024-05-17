@@ -81,8 +81,81 @@ The TokenConversionManager contract manages token conversions between Ethereum a
 
 ###  `Commission` Contract
 
-Key-functions:
-State variables:
+The `Commission` contract module manages commission settings and calculations for a bridge contract. It includes functionality for enabling/disabling commissions, calculating different types of commissions, and handling commission transfers.
+
+#### Key-functions:
+
+- **constructor**
+  - **Parameters**: Various commission settings
+  - **Description**: Initializes the commission settings.
+
+- **disableCommission**
+  - **Description**: Disables the commission. Only callable by the contract owner.
+
+- **updateCommissionConfiguration**
+  - **Parameters**: Various commission settings
+  - **Description**: Updates the commission configuration.Only callable by the contract owner.
+
+- **updateReceiverCommission**
+  - **Parameters**: `address newReceiverCommission`
+  - **Description**: Updates the receiver commission address. Only callable by the contract owner.
+
+- **updateBridgeOwner**
+  - **Parameters**: `address newBridgeOwner`
+  - **Description**: Updates the bridge owner commission address. Only callable by the contract owner.
+
+- **claimNativeCurrencyCommission**
+  - **Description**: Claims the native currency commission. Only callable by bridge owner or commission receiver addresses
+
+- **getCommissionReceiverAddresses**
+  - **Returns**: `(address, address)`
+  - **Description**: Returns bridge owner and commission receiver addresses
+
+- **getCommissionSettings**
+  - **Returns**: Various commission settings
+  - **Description**: Returns the current commission settings.
+
+- **_takeCommissionInTokenOutput**
+  - **Parameters**: `uint256 amount`
+  - **Description**: Takes a commission in tokens during conversion out.
+
+- **_takeCommissionInTokenInput**
+  - **Parameters**: `uint256 amount`
+  - **Description**: Takes a commission in tokens during conversion in.
+
+- **_calculateCommissionInToken**
+  - **Parameters**: `uint256 amount`
+  - **Description**: Calls `_calculateCommissionBridgeOwnerProportion` and returns commission amount for bridge owner and the whole sum of commission.
+
+- **_calculateCommissionBridgeOwnerProportion**
+  - **Parameters**: `uint256 amount`
+  - **Description**: Calculates the bridge owner's proportion of the commission.
+
+
+</br>
+
+#### State variables:
+
+- **ONE_HUNDRED, ONE_THOUSAND**
+  - **Type**: `uint256`
+  - **Description**: Constants for percentage calculations.
+
+- **FIXED_NATIVE_TOKEN_COMMISSION_LIMIT**
+  - **Type**: `uint256`
+  - **Description**: Immutable limit for fixed native token commission.
+
+- **commissionSettings**
+  - **Type**: `struct CommissionSettings`
+  - **Description**: Stores commission settings including percentages, proportions, and addresses.
+
+- **_token**
+  - **Type**: `address`
+  - **Description**: Address of the token contract.
+
+- **TRANSFERFROM_SELECTOR, MINT_SELECTOR, TRANSFER_SELECTOR**
+  - **Type**: `bytes4`
+  - **Description**: Constants storing function selectors for token operations.
+
 
 ##  Technologies used in the project
  - Solidity - smart contracts' language

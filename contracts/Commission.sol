@@ -125,7 +125,7 @@ abstract contract Commission is Ownable {
     }
 
     /**
-     * @notice Method to check when charging a fee in a native token
+     * @notice Method to check when charging a fee in native token
      */
     function _checkPayedCommissionInNative() internal {
         require(
@@ -137,7 +137,7 @@ abstract contract Commission is Ownable {
     /**
      * @notice Method to take a commission in tokens in conversionOut
      * @param amount - amount of conversion
-     * @return commission amount
+     * @return charged commission amount
      */
     function _takeCommissionInTokenOutput(uint256 amount) internal returns (uint256) {
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
@@ -195,9 +195,9 @@ abstract contract Commission is Ownable {
     }
 
     /**
-     * @notice Method for calculation a charged commission in tokens
+     * @notice Method for calculating a charging commission in tokens
      * @param amount - amount of conversion
-     * @return commission amount
+     * @return commission amount for bridge owner and the whole sum of commission
      */
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256, uint256) {
         if (commissionSettings.commissionType == CommissionType.PercentageTokens) {
@@ -223,7 +223,7 @@ abstract contract Commission is Ownable {
     }
 
     /**
-     * @notice Method for calculation a bridge owner proportion of commission
+     * @notice Method for calculating a bridge owner proportion of the whole sum of commission
      * @param amount - amount of conversion
      * @return bridge owner proportion of commission
      */
@@ -232,21 +232,21 @@ abstract contract Commission is Ownable {
     }
 
     /**
-     * @notice Method for disable commission
+     * @notice Method to disable commission
      */
     function disableCommission() external onlyOwner {
         commissionSettings.commissionIsEnabled = false;
     }
 
     /**
-     * @notice Method for update commission configuration
+     * @notice Method for updating commission configuration
      * @param commissionIsEnabled - enable/disable commission on bridge contract
      * @param receiverCommissionProportion - bridge commission receiver proportion
      * @param bridgeOwnerCommissionProportion - bridge owner commission proportion
-     * @param newConvertTokenPercentage - percenatage for charge commission in tokens
-     * @param newCommissionType - newCommissionType type of charged commission
-     * @param newFixedTokenCommission - fix token amount for charged commission in tokens
-     * @param newFixedNativeTokenCommission - fix native token amount for charged commission
+     * @param newConvertTokenPercentage - percenatage for charging commission in tokens
+     * @param newCommissionType - newCommissionType type of charging commission
+     * @param newFixedTokenCommission - fix token amount for charging commission in tokens
+     * @param newFixedNativeTokenCommission - fix native token amount for charging commission
      * @param receiverCommission - bridge commission receiver address
      * @param bridgeOwner - bridge owner commission receiver address
      */
