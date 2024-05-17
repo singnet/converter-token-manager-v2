@@ -4,6 +4,24 @@ Recommended using WSLv2/Linux/MacOS with LTS Node >= 18 & NPM >= 10 version
 
 # Functionality
 
+**Table of Contents**
+
+- [Installation](#installation)
+- [Functionality](#functionality)
+- [Technical requirements](#technical-requirements)
+  - [Project components](#project-components)
+  - [`Token Conversion Manager` Contract](#token-conversion-manager-contract)
+    - [Key-functions](#token-conversion-manager-key-functions)
+    - [State variables](#token-conversion-manager-state-variables)
+  - [`Commission` Contract`](#commission-contract)
+    - [Key-functions](#commission-key-functions)
+    - [State variables](#commission-state-variables)
+  - [Technologies used in the project](#technologies-used-in-the-project)
+  - [Architectural design](#architectural-design)
+
+- [Commands to launch tests](#commands-to-launch-tests)
+
+
 1. A contract is needed to burn and mint tokens as part of the bridge between blockchains.
 
 2. The contract can take a commission in tokens and in ETH
@@ -23,14 +41,13 @@ A detailed description of the contract's capabilities and mechanics of its use c
 
 # Technical requirements
 
-
 ##  Project components
 
 ###  `Token Conversion Manager` Contract
 
 The TokenConversionManager contract manages token conversions between Ethereum and non-Ethereum networks with signature verification. Signature is received from backend service and is used in order to prevent replay attacks. Key functionalities include updating authorizer address (backend service address actually) and configurations, and executing conversions in and out.
 
-#### Key-functions:
+#### `Token Conversion Manager` Key-functions
 - **constructor**
   - **Description**: Initializes the contract with token address, commission settings, and sets the conversion authorizer to the deployer.
 
@@ -60,7 +77,7 @@ The TokenConversionManager contract manages token conversions between Ethereum a
 
 </br>
 
-#### State variables:
+#### `Token Conversion Manager` State variables
 
 - **_conversionAuthorizer**
   - **Type**: `address`
@@ -78,12 +95,13 @@ The TokenConversionManager contract manages token conversions between Ethereum a
   - **Type**: `uint256`
   - **Description**: Configurations for minimum and maximum transaction amounts and maximum total supply.
 
+</br> </br>
 
 ###  `Commission` Contract
 
 The `Commission` contract module manages commission settings and calculations for a bridge contract. It includes functionality for enabling/disabling commissions, calculating different types of commissions, and handling commission transfers.
 
-#### Key-functions:
+#### `Commission` Key-functions:
 
 - **constructor**
   - **Parameters**: Various commission settings
@@ -134,7 +152,7 @@ The `Commission` contract module manages commission settings and calculations fo
 
 </br>
 
-#### State variables:
+#### `Commission` State variables
 
 - **ONE_HUNDRED, ONE_THOUSAND**
   - **Type**: `uint256`
@@ -168,22 +186,14 @@ The `Commission` contract module manages commission settings and calculations fo
 </p>
 
 
-## Installation dependencies
+## Commands to launch tests
+
+1. Install dependencies
 ```bash
-npm install
+    npm install
 ```
 
-## Run Tests
+2. Run Tests
 ```bash
-npx hardhat test --no-compile
-```
-
-## Run deploy !OUTDATED!
-```bash
-npx hardhat run scripts/deploy.js --network <network from config>
-```
-
-## Recognize contract size
-```bash
-npx hardhat size-contracts
+    npx hardhat test --no-compile
 ```
