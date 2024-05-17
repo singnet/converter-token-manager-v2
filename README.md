@@ -45,7 +45,7 @@ A detailed description of the contract's capabilities and mechanics of its use c
 
 ###  `Token Conversion Manager` Contract
 
-The TokenConversionManager contract manages token conversions between Ethereum and non-Ethereum networks with signature verification. Signature is received from backend service and is used in order to prevent replay attacks. Key functionalities include updating authorizer address (backend service address actually) and configurations, and executing conversions in and out.
+The `TokenConversionManager` contract manages token conversions between Ethereum and non-Ethereum networks with signature verification. Signature is received from backend service and is used in order to prevent replay attacks. Key functionalities include updating authorizer address (backend service address actually) and configurations, and executing conversions in and out.
 
 #### `Token Conversion Manager` Key-functions
 - **constructor**
@@ -182,7 +182,7 @@ The `Commission` contract module manages commission settings and calculations fo
 ##  Architectural design
  
 <p align="center">
-    <img src="./schemes/architecture.png"></img>
+    <img src="./schemes/architecture.png" width="553" height="659" ></img>
 </p>
 
 
