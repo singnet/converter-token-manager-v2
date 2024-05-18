@@ -3,14 +3,15 @@ pragma solidity ^0.8.19;
 
 import "./Commission.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract TokenConversionManager is Commission, ReentrancyGuard {
+error ViolationOfTxAmountLimits();
+error InvalidRequestOrSignature();
+
+contract TokenConversionManager is Commission {
     address private _conversionAuthorizer; // Authorizer Address for the conversion
 
     bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
     bytes4 private constant BURN_SELECTOR = bytes4(keccak256("burnFrom(address,uint256)"));
-    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
 
     //already used conversion signature from authorizer in order to prevent replay attack
     mapping (bytes32 => bool) private _usedSignatures; 
@@ -31,7 +32,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     // Modifiers
     modifier checkLimits(uint256 amount) {
         // Check for min, max per transaction limits
-        require(amount >= _perTxnMinAmount && amount <= _perTxnMaxAmount, "Violates conversion limits");
+        if(amount < _perTxnMinAmount && amount > _perTxnMaxAmount)
+            revert ViolationOfTxAmountLimits();
         _;
     }
 
@@ -49,6 +51,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         address payable bridgeOwner
     ) 
         Commission(
+            token,
             commissionIsEnabled,
             convertTokenPercentage,
             receiverCommissionProportion,
@@ -61,7 +64,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
             bridgeOwner
         )
     {
-        _token = token;
+        require(token != address(0), "Token address is zero address");
+        
         _conversionAuthorizer = _msgSender(); 
     }
 
@@ -69,7 +73,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     * @dev To update the authorizer who can authorize the conversions.
     */
     function updateAuthorizer(address newAuthorizer) external onlyOwner {
-        require(newAuthorizer != address(0), "Invalid operator address");
+        if(newAuthorizer == address(0))
+            revert ZeroAddress();
 
         _conversionAuthorizer = newAuthorizer;
 
@@ -88,7 +93,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         onlyOwner 
     {
         // Check for the valid inputs
-        require(perTxnMinAmount > 0 && perTxnMaxAmount > perTxnMinAmount && maxSupply > 0, "Invalid inputs");
+        if(perTxnMinAmount < 0 && perTxnMaxAmount <= perTxnMinAmount && maxSupply < 0) 
+            revert InvalidUpdateConfigurations();
 
         // Update the configurations
         _perTxnMinAmount = perTxnMinAmount;
@@ -119,7 +125,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
 
         // Check for the Balance
-        require(IERC20(_token).balanceOf(_msgSender()) >= amount, "Not enough balance");
+        if(IERC20(_token).balanceOf(_msgSender()) < amount) 
+            revert NotEnoughBalance();
         
         //compose the message which was signed
         bytes32 message = prefixed(
@@ -135,7 +142,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         );
 
         // check that the signature is from the authorizer
-        require(ecrecover(message, v, r, s) == _conversionAuthorizer, "Invalid request or signature");
+        if(ecrecover(message, v, r, s) != _conversionAuthorizer)
+            revert InvalidRequestOrSignature();
 
         //check for replay attack (message signature can be used only once)
         require(!_usedSignatures[message], "Signature has already been used");
