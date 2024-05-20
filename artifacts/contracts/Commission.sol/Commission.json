@@ -4,6 +4,58 @@
   "sourceName": "contracts/Commission.sol",
   "abi": [
     {
+      "inputs": [
+        {
+          "internalType": "uint8",
+          "name": "proportion1",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint8",
+          "name": "proportion2",
+          "type": "uint8"
+        }
+      ],
+      "name": "InvalidProportionSum",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NativeClaimFailed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotEnoughBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PercentageLimitExceeded",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "caller",
+          "type": "address"
+        }
+      ],
+      "name": "UnauthorizedCommissionReceiver",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ViolationOfNativeTokenLimit",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroAddress",
+      "type": "error"
+    },
+    {
       "anonymous": false,
       "inputs": [
         {

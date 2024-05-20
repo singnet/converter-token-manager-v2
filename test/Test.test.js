@@ -444,7 +444,6 @@ describe("TokenConversionManager with commission in native currency", function (
             );
     });
 
-    // TODO: Add test for claim native currency commission
     it("Should handle correctly claim commission in native currency by commission receiver", async function () {
 
         const [ authorizer, intruder ] = await ethers.getSigners();
@@ -481,8 +480,7 @@ describe("TokenConversionManager with commission in native currency", function (
 
         await expect(
             converter.connect(intruder).claimNativeCurrencyCommission()
-        ).to.be.revertedWith("Signer is not a commission receiver");
-
+        ).to.be.revertedWithCustomError(converter, "UnauthorizedCommissionReceiver");
     }); 
 });
 
@@ -525,7 +523,7 @@ describe("Administrative functionality", function () {
 
     it("Administrative Operation - Update Conversion Authorizer", async function () {
         await converter.updateAuthorizer(await newAuthorizer.getAddress());
-        let updatedAuthorizer = await converter.getconversionAuthorizer();
+        let updatedAuthorizer = await converter.getConversionAuthorizer();
         expect(updatedAuthorizer).to.equal(await newAuthorizer.getAddress());
 
         await expect(
@@ -640,5 +638,4 @@ describe("Administrative functionality", function () {
             )
         ).to.be.revertedWith("Ownable: caller is not the owner");
     });
-
 });
