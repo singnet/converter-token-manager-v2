@@ -2,14 +2,14 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/kirill/Work/snet/converter-token-manager-v2/contracts/Commission.sol": {
-      "lastModificationDate": 1716208268969,
-      "contentHash": "dc228d47a5902d96e16517a66becc233",
+      "lastModificationDate": 1716318268639,
+      "contentHash": "ad2cc0ad77df8686125a366c71e270c4",
       "sourceName": "contracts/Commission.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -25,9 +25,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -43,14 +40,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/security/ReentrancyGuard.sol": {
-      "lastModificationDate": 1716215741824,
+      "lastModificationDate": 1716306982088,
       "contentHash": "1535f8c0c68463f8c1b5239f7584e71f",
       "sourceName": "@openzeppelin/contracts/security/ReentrancyGuard.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -66,9 +63,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -81,14 +75,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/access/Ownable.sol": {
-      "lastModificationDate": 1716215741805,
+      "lastModificationDate": 1716306982083,
       "contentHash": "5a20b2cad87ddb61c7a3a6af21289e28",
       "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -104,9 +98,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -121,14 +112,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/utils/Context.sol": {
-      "lastModificationDate": 1716215741573,
+      "lastModificationDate": 1716306981905,
       "contentHash": "f07feb4a44b1a4872370da5aa70e8e46",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -144,9 +135,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -159,14 +147,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/contracts/TokenConversionManager.sol": {
-      "lastModificationDate": 1716211171809,
-      "contentHash": "2309b7ad7d127e0249f49047f939159b",
+      "lastModificationDate": 1716308645720,
+      "contentHash": "18bb25e83eeb21de286396d0ddce888f",
       "sourceName": "contracts/TokenConversionManager.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -182,9 +170,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -200,14 +185,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
-      "lastModificationDate": 1716215741749,
+      "lastModificationDate": 1716306982025,
       "contentHash": "df36f7051335cd1e748b1b6463b7fdd3",
       "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -223,9 +208,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -238,14 +220,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol": {
-      "lastModificationDate": 1716215741750,
+      "lastModificationDate": 1716306982026,
       "contentHash": "909ab67fc5c25033fe6cd364f8c056f9",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -261,9 +243,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -278,14 +257,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol": {
-      "lastModificationDate": 1716215741665,
+      "lastModificationDate": 1716306981951,
       "contentHash": "3ae5166c6827a9cf1a7a462d1632b464",
       "sourceName": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -301,9 +280,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -320,14 +296,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol": {
-      "lastModificationDate": 1716215741667,
+      "lastModificationDate": 1716306981952,
       "contentHash": "a1c7f80ae26f5b2d7d563475627fbf25",
       "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -343,9 +319,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -361,14 +334,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/security/Pausable.sol": {
-      "lastModificationDate": 1716215741807,
+      "lastModificationDate": 1716306982084,
       "contentHash": "25c8108f36fdd472bc78d4c4af240c11",
       "sourceName": "@openzeppelin/contracts/security/Pausable.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -384,9 +357,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -401,14 +371,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/access/AccessControl.sol": {
-      "lastModificationDate": 1716215741553,
+      "lastModificationDate": 1716306981889,
       "contentHash": "a2b1ec38a8dad325a596f926890772b8",
       "sourceName": "@openzeppelin/contracts/access/AccessControl.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -424,9 +394,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -444,14 +411,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/utils/Strings.sol": {
-      "lastModificationDate": 1716215741850,
+      "lastModificationDate": 1716306982098,
       "contentHash": "48686fc32a22a3754b8e63321857dd2a",
       "sourceName": "@openzeppelin/contracts/utils/Strings.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -467,9 +434,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -485,14 +449,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/utils/introspection/ERC165.sol": {
-      "lastModificationDate": 1716215741655,
+      "lastModificationDate": 1716306981943,
       "contentHash": "0e7db055ce108f9da7bb6686a00287c0",
       "sourceName": "@openzeppelin/contracts/utils/introspection/ERC165.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -508,9 +472,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -525,14 +486,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/access/IAccessControl.sol": {
-      "lastModificationDate": 1716215741725,
+      "lastModificationDate": 1716306981999,
       "contentHash": "57c84298234411cea19c7c284d86be8b",
       "sourceName": "@openzeppelin/contracts/access/IAccessControl.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -548,9 +509,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -563,14 +521,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/utils/math/Math.sol": {
-      "lastModificationDate": 1716215741801,
+      "lastModificationDate": 1716306982080,
       "contentHash": "fe63409d8a06818b926cf89e0ea88b1b",
       "sourceName": "@openzeppelin/contracts/utils/math/Math.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -586,9 +544,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -601,14 +556,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/utils/math/SignedMath.sol": {
-      "lastModificationDate": 1716215741847,
+      "lastModificationDate": 1716306982095,
       "contentHash": "9488ebd4daacfee8ad04811600d7d061",
       "sourceName": "@openzeppelin/contracts/utils/math/SignedMath.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -624,9 +579,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -639,14 +591,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/utils/introspection/IERC165.sol": {
-      "lastModificationDate": 1716215741744,
+      "lastModificationDate": 1716306982014,
       "contentHash": "03e6768535ac4da0e9756f1d8a4a018a",
       "sourceName": "@openzeppelin/contracts/utils/introspection/IERC165.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -662,9 +614,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },
@@ -677,14 +626,14 @@
       ]
     },
     "/Users/kirill/Work/snet/converter-token-manager-v2/contracts/Token.sol": {
-      "lastModificationDate": 1716210755127,
+      "lastModificationDate": 1716308329290,
       "contentHash": "13b8ba9f2ab1a47ace8b515b68fe12a7",
       "sourceName": "contracts/Token.sol",
       "solcConfig": {
         "version": "0.8.19",
         "settings": {
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
           "outputSelection": {
@@ -700,9 +649,6 @@
                 "ast"
               ]
             }
-          },
-          "metadata": {
-            "useLiteralContent": false
           }
         }
       },

@@ -33,10 +33,11 @@ describe("TokenConversionManager without commission", function () {
             0, // convertTokenPercentage
             20, // receiverCommissionProportion
             80, // bridgeOwnerCommissionProportion
+            10000, // point offset shifter
             0, // commissionType
-            300, // fixedNativeTokenCommission
+            0, // fixedNativeTokenCommission
             10000000000,  // fixedNativeTokenCommissionLimit
-            100, // fixedTokenCommission
+            0, // fixedTokenCommission
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -116,7 +117,7 @@ describe("TokenConversionManager with percentage tokens commission", function ()
     const amount = 10000000000;
 
     // constructor arguments      
-    const convertTokenPercentage = 40
+    const convertTokenPercentage = 45
     const receiverCommissionProportion = 20
     const bridgeOwnerCommissionProportion = 80
 
@@ -141,10 +142,11 @@ describe("TokenConversionManager with percentage tokens commission", function ()
             convertTokenPercentage, 
             receiverCommissionProportion, // receiverCommissionProportion
             bridgeOwnerCommissionProportion, // bridgeOwnerCommissionProportion
+            10000, // point offset shifter
             0, // commissionType
-            300, // fixedNativeTokenCommission
+            0, // fixedNativeTokenCommission
             10000000000,  // fixedNativeTokenCommissionLimit
-            100, // fixedTokenCommission
+            0, // fixedTokenCommission
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -180,8 +182,8 @@ describe("TokenConversionManager with percentage tokens commission", function ()
             v, r, s
         )
         expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/1000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/1000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/10000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/10000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
     }); 
 
     it("Should handle token conversionIn correctly with percentage tokens commission", async function () {
@@ -210,9 +212,9 @@ describe("TokenConversionManager with percentage tokens commission", function ()
             formatBytes32String("conversionId"),
             v, r, s
         )
-        expect(BigInt(initBalanceBeforeConversionIn+amount-(amount*convertTokenPercentage/1000))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/1000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/1000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
+        expect(BigInt(initBalanceBeforeConversionIn+amount-(amount*convertTokenPercentage/10000))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/10000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/10000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
     }); 
 });
 
@@ -246,7 +248,8 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
             true, // commissionIsEnabled,
             0, // convertTokenPercentage
             receiverCommissionProportion, 
-            bridgeOwnerCommissionProportion, 
+            bridgeOwnerCommissionProportion,
+            10000,
             1, // commissionType
             fixedNativeTokenCommission_, // fixedNativeTokenCommission
             10000000000,  // fixedNativeTokenCommissionLimit
@@ -354,6 +357,7 @@ describe("TokenConversionManager with commission in native currency", function (
             0, // convertTokenPercentage
             50, // receiverCommissionProportion
             50, // bridgeOwnerCommissionProportion
+            10000,
             2, // commissionType
             fixedNativeTokenCommission_, //fixedNativeTokenCommission
             1000000000000000,  // fixedNativeTokenCommissionLimit
@@ -512,6 +516,7 @@ describe("Administrative functionality", function () {
             1, // convertTokenPercentage
             50, // receiverCommissionProportion
             50, // bridgeOwnerCommissionProportion
+            10000,
             0, // commissionType
             0, //fixedNativeTokenCommission
             100000000000,  // fixedNativeTokenCommissionLimit
@@ -555,6 +560,7 @@ describe("Administrative functionality", function () {
         let newCommissionIsEnabled = true;
         let newReceiverCommissionProportion = 30;
         let newBridgeOwnerCommissionProportion = 70;
+        let newOffset = 0;
         let newConvertTokenPercentage = 0;
         let newCommissionType = 2;
         let newFixedTokenCommission = 0;
@@ -567,6 +573,7 @@ describe("Administrative functionality", function () {
             newReceiverCommissionProportion,
             newBridgeOwnerCommissionProportion,
             newConvertTokenPercentage,
+            newOffset,
             newCommissionType,
             newFixedTokenCommission,
             newFixedNativeTokenCommission,
@@ -580,12 +587,13 @@ describe("Administrative functionality", function () {
         expect(updatedCommissionConfigurations[1]).to.equal(BigInt(newReceiverCommissionProportion));
         expect(updatedCommissionConfigurations[2]).to.equal(BigInt(newBridgeOwnerCommissionProportion));
         expect(updatedCommissionConfigurations[3]).to.equal(BigInt(newConvertTokenPercentage));
-        expect(updatedCommissionConfigurations[4]).to.equal(BigInt(newCommissionType));
+        expect(updatedCommissionConfigurations[4]).to.equal(BigInt(newOffset));
+        expect(updatedCommissionConfigurations[5]).to.equal(BigInt(newCommissionType));
 
-        expect(updatedCommissionConfigurations[5]).to.equal(BigInt(newFixedTokenCommission));
-        expect(updatedCommissionConfigurations[6]).to.equal(BigInt(newFixedNativeTokenCommission));
-        expect(updatedCommissionConfigurations[7]).to.equal(newReceiverCommission);
-        expect(updatedCommissionConfigurations[8]).to.equal(newBridgeOwner);
+        expect(updatedCommissionConfigurations[6]).to.equal(BigInt(newFixedTokenCommission));
+        expect(updatedCommissionConfigurations[7]).to.equal(BigInt(newFixedNativeTokenCommission));
+        expect(updatedCommissionConfigurations[8]).to.equal(newReceiverCommission);
+        expect(updatedCommissionConfigurations[9]).to.equal(newBridgeOwner);
         
         await expect(
             converter.connect(intruder).updateCommissionConfiguration(
@@ -593,6 +601,7 @@ describe("Administrative functionality", function () {
                 0,
                 100,
                 newConvertTokenPercentage,
+                newOffset,
                 newCommissionType,
                 newFixedTokenCommission,
                 newFixedNativeTokenCommission,

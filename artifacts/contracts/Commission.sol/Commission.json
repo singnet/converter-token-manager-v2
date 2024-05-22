@@ -116,6 +116,12 @@
         },
         {
           "indexed": false,
+          "internalType": "uint16",
+          "name": "pointOffsetShifter",
+          "type": "uint16"
+        },
+        {
+          "indexed": false,
           "internalType": "uint256",
           "name": "commissionType",
           "type": "uint256"
@@ -200,6 +206,11 @@
           "type": "uint8"
         },
         {
+          "internalType": "uint16",
+          "name": "pointOffsetShifter",
+          "type": "uint16"
+        },
+        {
           "internalType": "bool",
           "name": "commissionIsEnabled",
           "type": "bool"
@@ -281,6 +292,11 @@
           "internalType": "uint8",
           "name": "convertTokenPercentage",
           "type": "uint8"
+        },
+        {
+          "internalType": "uint16",
+          "name": "offsetShifter",
+          "type": "uint16"
         },
         {
           "internalType": "uint256",
@@ -383,6 +399,11 @@
           "internalType": "uint8",
           "name": "newConvertTokenPercentage",
           "type": "uint8"
+        },
+        {
+          "internalType": "uint16",
+          "name": "newPointOffsetShifter",
+          "type": "uint16"
         },
         {
           "internalType": "uint256",

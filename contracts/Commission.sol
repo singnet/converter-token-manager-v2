@@ -22,7 +22,6 @@ error TakeNativeTokenCommissionFailed(uint256 sent, uint256 required);
 abstract contract Commission is Ownable, ReentrancyGuard {
 
     uint256 private constant ONE_HUNDRED = 100;
-    uint256 private constant ONE_THOUSAND = 1000;
     uint256 private immutable FIXED_NATIVE_TOKEN_COMMISSION_LIMIT;
     
     enum CommissionType {
@@ -36,6 +35,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         uint8 convertTokenPercentage; // percentage sum of commission in token
         uint8 receiverCommissionProportion; // proportion for commission receiver
         uint8 bridgeOwnerCommissionProportion; // proportion for bridge owner commission receiver
+        uint16 pointOffsetShifter; // point offset variable
         bool commissionIsEnabled; // activate/deactivate commission
         uint256 fixedNativeTokenCommission; // fixed value of commission in native tokens
         uint256 fixedTokenCommission; // fixed value of commission in tokens
@@ -58,6 +58,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         uint8 convertTokenPercentage,
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
+        uint16 pointOffsetShifter,
         uint256 commissionType,
         uint256 fixedTokenCommission,
         uint256 fixedNativeTokenCommission,
@@ -77,15 +78,6 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         _;
     }
 
-    // convertTokenPercentage <= 1000 in order to represent 
-    // floating point fees with one decimal place
-    modifier checkPercentageLimit(uint8 amount) {
-        if (amount > ONE_THOUSAND) {
-            revert PercentageLimitExceeded();
-        }
-        _;
-    }
-
     modifier checkProportion(uint8 proportionOne, uint8 proportionTwo) {
         if (proportionOne + proportionTwo != uint8(100)) {
             revert InvalidProportionSum(proportionOne, proportionTwo);
@@ -99,6 +91,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         uint8 convertTokenPercentage,
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
+        uint16 pointOffsetShifter,
         uint256 commissionType,
         uint256 fixedNativeTokenCommission,
         uint256 fixedNativeTokenCommissionLimit,
@@ -107,13 +100,14 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         address payable bridgeOwner
     )
         Ownable()
-        checkPercentageLimit(convertTokenPercentage)
         checkProportion(receiverCommissionProportion, bridgeOwnerCommissionProportion) 
     {
 
         _token = token;
 
         FIXED_NATIVE_TOKEN_COMMISSION_LIMIT = fixedNativeTokenCommissionLimit;
+
+        _checkPercentageLimit(convertTokenPercentage, pointOffsetShifter);
 
         if (!commissionIsEnabled) return;
 
@@ -123,6 +117,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             convertTokenPercentage,
             receiverCommissionProportion,
             bridgeOwnerCommissionProportion,
+            pointOffsetShifter,
             commissionType,
             fixedTokenCommission, 
             fixedNativeTokenCommission,
@@ -135,6 +130,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             convertTokenPercentage,
             receiverCommissionProportion,
             bridgeOwnerCommissionProportion,
+            pointOffsetShifter,
             commissionType,
             fixedTokenCommission,
             fixedNativeTokenCommission,
@@ -236,7 +232,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      */
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256, uint256) {
         if (commissionSettings.commissionType == CommissionType.PercentageTokens) {
-            uint256 commissionSum = amount* uint256(commissionSettings.convertTokenPercentage) / ONE_THOUSAND;
+            uint256 commissionSum = amount* uint256(commissionSettings.convertTokenPercentage) / commissionSettings.pointOffsetShifter;
             return (
                 _calculateCommissionBridgeOwnerProportion(commissionSum), 
                 commissionSum
@@ -290,6 +286,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
         uint8 newConvertTokenPercentage,
+        uint16 newPointOffsetShifter,
         uint256 newCommissionType,
         uint256 newFixedTokenCommission,
         uint256 newFixedNativeTokenCommission,
@@ -297,16 +294,18 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         address payable bridgeOwner
     )
         external onlyOwner
-        checkPercentageLimit(newConvertTokenPercentage)
         checkProportion(receiverCommissionProportion, bridgeOwnerCommissionProportion) 
     {
         if (!commissionSettings.commissionIsEnabled)
             commissionSettings.commissionIsEnabled = true;
 
+        _checkPercentageLimit(newConvertTokenPercentage, newPointOffsetShifter);
+
         _updateCommissionSettings(
             newConvertTokenPercentage,
             receiverCommissionProportion,
             bridgeOwnerCommissionProportion,
+            newPointOffsetShifter,
             newCommissionType,
             newFixedTokenCommission, 
             newFixedNativeTokenCommission,
@@ -319,6 +318,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             newConvertTokenPercentage,
             receiverCommissionProportion,
             bridgeOwnerCommissionProportion,
+            newPointOffsetShifter,
             newCommissionType,
             newFixedTokenCommission,
             newFixedNativeTokenCommission,
@@ -412,6 +412,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
         uint8 convertTokenPercentage,
+        uint16 offsetShifter,
         uint256 tokenTypeCommission,
         uint256 fixedTokenCommission,
         uint256 fixedNativeTokenCommission,
@@ -424,6 +425,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             commissionSettings.receiverCommissionProportion,
             commissionSettings.bridgeOwnerCommissionProportion,
             commissionSettings.convertTokenPercentage,
+            commissionSettings.pointOffsetShifter,
             uint256(commissionSettings.commissionType),
             commissionSettings.fixedTokenCommission,
             commissionSettings.fixedNativeTokenCommission,
@@ -440,6 +442,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         uint8 convertTokenPercentage,
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
+        uint16 pointOffsetShifter,
         uint256 commissionType,
         uint256 fixedTokenCommission,
         uint256 fixedNativeTokenCommission,
@@ -454,7 +457,8 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         if (commissionSettings.bridgeOwnerCommissionProportion != bridgeOwnerCommissionProportion)  
             commissionSettings.bridgeOwnerCommissionProportion = bridgeOwnerCommissionProportion; 
 
-        if ( commissionType == 0 && convertTokenPercentage > 0) {
+        if (commissionType == 0 && convertTokenPercentage > 0) {
+            commissionSettings.pointOffsetShifter = pointOffsetShifter;
             commissionSettings.convertTokenPercentage = convertTokenPercentage;
             commissionSettings.commissionType = CommissionType.PercentageTokens;
         } else if (commissionType == 1) {
@@ -476,5 +480,18 @@ abstract contract Commission is Ownable, ReentrancyGuard {
     function _checkFixedNativeTokenLimit(uint256 fixedNativeTokenCommission) private view {
         if (fixedNativeTokenCommission > FIXED_NATIVE_TOKEN_COMMISSION_LIMIT)
             revert ViolationOfNativeTokenLimit();
+    }
+
+    /**
+     * @notice Method for check customizing percenatage parameters
+     * @param convertTokenPercentage - new convert token percentage
+     * @param pointOffsetShifter - new offset point shifter
+     */
+    // convertTokenPercentage <= pointOffsetShifter in order to represent 
+    // floating point fees with one decimal place
+    function _checkPercentageLimit(uint8 convertTokenPercentage, uint16 pointOffsetShifter) internal pure {
+        if (convertTokenPercentage > pointOffsetShifter) {
+            revert PercentageLimitExceeded();
+        }
     }
 }
