@@ -13,7 +13,7 @@ error ConversionMintFailed();
 error ConversionTransferFailed();
 error InvalidCommissionDeduction();
 
-contract TokenConversionManager is Commission {
+contract TokenConversionManagerV2 is Commission {
     address private _conversionAuthorizer; // Authorizer Address for the conversion
 
     bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));

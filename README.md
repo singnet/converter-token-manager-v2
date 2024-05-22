@@ -2,31 +2,61 @@
 
 Recommended using WSLv2/Linux/MacOS with LTS Node >= 18 & NPM >= 10 version
 
-# Functionality
-
 **Table of Contents**
 
 - [Installation](#installation)
+- [Commands to launch tests](#commands-to-launch-tests)
+- [Use Case](#use-case)
 - [Functionality](#functionality)
+  - [Converter Contract functionality requirements](#converter-contract-functionality-requirements)
+  - [Commission Contract functionality requirements](#commission-contract-functionality-requirements)
 - [Technical requirements](#technical-requirements)
   - [Project components](#project-components)
   - [`Token Conversion Manager` Contract](#token-conversion-manager-contract)
     - [Key-functions](#token-conversion-manager-key-functions)
     - [State variables](#token-conversion-manager-state-variables)
-  - [`Commission` Contract`](#commission-contract)
+  - [`Commission Contract`](#commission-contract)
     - [Key-functions](#commission-key-functions)
     - [State variables](#commission-state-variables)
   - [Technologies used in the project](#technologies-used-in-the-project)
   - [Architectural design](#architectural-design)
 
-- [Commands to launch tests](#commands-to-launch-tests)
+## Installation
 
+1. Install dependencies
+```bash
+    npm install
+```
 
-1. A contract is needed to burn and mint tokens as part of the bridge between blockchains.
+## Commands to launch tests
+The `Token.sol` file with a sample token contract is only needed to run the tests(Not for audit).
 
-2. The contract can take a commission in tokens and in ETH
+2. Run Tests
+```bash
+    npx hardhat test
+```
 
-Attention: Also, the commission is distributed between the two recipients in a set proportion of the amount of the commission charged
+# Use case
+
+A contract is needed to burn and mint tokens as part of the bridge between blockchains.
+
+The contract will receive data about the transfer between different blockchains, including the signature that is generated on the backend, thereby verifying the transaction.
+
+# Functionality
+
+## Converter Contract functionality requirements
+
+As part of the functionality, the contract should be able to burn the users tokens for later issuance on another blockchain.
+
+The converter contract should also be able to issue a validated number of tokens when using a specific role in the token.
+
+The contract validates the minimum and maximum number of tokens within each conversion transaction. And also prevent exceeding the maximum number (max supply) of issued tokens for the token being used.
+
+## Commission Contract functionality requirements
+
+The contract can take a commission in tokens and in ETH
+
+Charged amount of commission is distributed between the two recipients in a set proportion of the amount of the commission charged
 
 * % of conversion amount
 
@@ -34,7 +64,7 @@ Attention: Also, the commission is distributed between the two recipients in a s
 
 * fix ETH amount for each conversion regardless of the amount
 
-3. Contract allowed to change any settings: commission receivers, value of commision, min, max amount of conversion, etc
+Contract allowed to change any settings: commission receivers, value of commision, min, max amount of conversion, etc
 
 A detailed description of the contract's capabilities and mechanics of its use can be found in the [document](https://docs.google.com/document/d/1eyqZTU7vKpZ077GCq9VA9RCwvlW_M6825YjYtDXvMbE/edit?usp=sharing).
 
@@ -184,16 +214,3 @@ The `Commission` contract module manages commission settings and calculations fo
 <p align="center">
     <img src="./schemes/architecture.png" width="553" height="659" ></img>
 </p>
-
-
-## Commands to launch tests
-
-1. Install dependencies
-```bash
-    npm install
-```
-
-2. Run Tests
-```bash
-    npx hardhat test --no-compile
-```

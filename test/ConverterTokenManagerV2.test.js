@@ -6,7 +6,7 @@ var ethereumjsabi = require('ethereumjs-abi')
 const Buffer = require('buffer').Buffer;
 
 
-describe("TokenConversionManager without commission", function () {
+describe("TokenConversionManagerV2 without commission", function () {
     let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
     let token, converter;
 
@@ -26,7 +26,7 @@ describe("TokenConversionManager without commission", function () {
         
         await token.mint(tokenHolder.address, 1000000000000);  // 10k      
 
-        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address of token to convert
             false, // commissionIsEnabled,
@@ -135,7 +135,7 @@ describe("TokenConversionManager with percentage tokens commission", function ()
         
         await token.mint(tokenHolder.address, 1000000000000);  // 10k     
     
-        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address of token to convert
             true, // commissionIsEnabled,
@@ -242,7 +242,7 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
 
         await token.mint(tokenHolder.address, 1000000000000);  // 10k      
 
-        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address token, 
             true, // commissionIsEnabled,
@@ -349,7 +349,7 @@ describe("TokenConversionManager with commission in native currency", function (
         
         await token.mint(tokenHolder.address, 1000000000000);  // 10k      
 
-        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
 
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), 
@@ -509,7 +509,7 @@ describe("Administrative functionality", function () {
        
         await token.mint(tokenHolder.address, 10000);       
         
-        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManager");
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), 
             false, // commissionIsEnabled,

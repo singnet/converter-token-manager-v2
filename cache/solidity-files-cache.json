@@ -146,44 +146,6 @@
         "Context"
       ]
     },
-    "/Users/kirill/Work/snet/converter-token-manager-v2/contracts/TokenConversionManager.sol": {
-      "lastModificationDate": 1716308645720,
-      "contentHash": "18bb25e83eeb21de286396d0ddce888f",
-      "sourceName": "contracts/TokenConversionManager.sol",
-      "solcConfig": {
-        "version": "0.8.19",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./Commission.sol",
-        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.19"
-      ],
-      "artifacts": [
-        "TokenConversionManager"
-      ]
-    },
     "/Users/kirill/Work/snet/converter-token-manager-v2/node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol": {
       "lastModificationDate": 1716306982025,
       "contentHash": "df36f7051335cd1e748b1b6463b7fdd3",
@@ -663,6 +625,44 @@
       ],
       "artifacts": [
         "Token"
+      ]
+    },
+    "/Users/kirill/Work/snet/converter-token-manager-v2/contracts/TokenConversionManagerV2.sol": {
+      "lastModificationDate": 1716385045222,
+      "contentHash": "4f19fa7ef332646e177e186d6a42690a",
+      "sourceName": "contracts/TokenConversionManagerV2.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./Commission.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "TokenConversionManagerV2"
       ]
     }
   }
