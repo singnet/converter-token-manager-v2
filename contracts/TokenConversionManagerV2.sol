@@ -3,14 +3,21 @@ pragma solidity ^0.8.19;
 
 import "./Commission.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract TokenConversionManager is Commission, ReentrancyGuard {
+// Errors
+error ViolationOfTxAmountLimits();
+error InvalidRequestOrSignature();
+error UsedSignature();
+error ConversionFailed();
+error ConversionMintFailed();
+error ConversionTransferFailed();
+error InvalidCommissionDeduction();
+
+contract TokenConversionManagerV2 is Commission {
     address private _conversionAuthorizer; // Authorizer Address for the conversion
 
     bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
     bytes4 private constant BURN_SELECTOR = bytes4(keccak256("burnFrom(address,uint256)"));
-    bytes4 private constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
 
     //already used conversion signature from authorizer in order to prevent replay attack
     mapping (bytes32 => bool) private _usedSignatures; 
@@ -31,7 +38,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     // Modifiers
     modifier checkLimits(uint256 amount) {
         // Check for min, max per transaction limits
-        require(amount >= _perTxnMinAmount && amount <= _perTxnMaxAmount, "Violates conversion limits");
+        if (amount < _perTxnMinAmount && amount > _perTxnMaxAmount)
+            revert ViolationOfTxAmountLimits();
         _;
     }
 
@@ -41,6 +49,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         uint8 convertTokenPercentage,
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
+        uint16 pointOffsetShifter,
         uint256 commissionType,
         uint256 fixedNativeTokenCommission,
         uint256 fixedNativeTokenCommissionLimit,
@@ -49,10 +58,12 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         address payable bridgeOwner
     ) 
         Commission(
+            token,
             commissionIsEnabled,
             convertTokenPercentage,
             receiverCommissionProportion,
             bridgeOwnerCommissionProportion,
+            pointOffsetShifter,
             commissionType,
             fixedNativeTokenCommission,
             fixedNativeTokenCommissionLimit,
@@ -61,7 +72,9 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
             bridgeOwner
         )
     {
-        _token = token;
+        if (token == address(0))
+            revert ZeroAddress();
+        
         _conversionAuthorizer = _msgSender(); 
     }
 
@@ -69,7 +82,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
     * @dev To update the authorizer who can authorize the conversions.
     */
     function updateAuthorizer(address newAuthorizer) external onlyOwner {
-        require(newAuthorizer != address(0), "Invalid operator address");
+        if (newAuthorizer == address(0))
+            revert ZeroAddress();
 
         _conversionAuthorizer = newAuthorizer;
 
@@ -88,7 +102,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         onlyOwner 
     {
         // Check for the valid inputs
-        require(perTxnMinAmount > 0 && perTxnMaxAmount > perTxnMinAmount && maxSupply > 0, "Invalid inputs");
+        if (perTxnMinAmount < 0 && perTxnMaxAmount <= perTxnMinAmount && maxSupply < 0) 
+            revert InvalidUpdateConfigurations();
 
         // Update the configurations
         _perTxnMinAmount = perTxnMinAmount;
@@ -119,9 +134,10 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
 
         // Check for the Balance
-        require(IERC20(_token).balanceOf(_msgSender()) >= amount, "Not enough balance");
+        if (IERC20(_token).balanceOf(_msgSender()) < amount) 
+            revert NotEnoughBalance();
         
-        //compose the message which was signed
+        // Compose the message which was signed
         bytes32 message = prefixed(
             keccak256(
                 abi.encodePacked(
@@ -134,15 +150,17 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
             )
         );
 
-        // check that the signature is from the authorizer
-        require(ecrecover(message, v, r, s) == _conversionAuthorizer, "Invalid request or signature");
+        // Check that the signature is from the authorizer
+        if (ecrecover(message, v, r, s) != _conversionAuthorizer)
+            revert InvalidRequestOrSignature();
 
-        //check for replay attack (message signature can be used only once)
-        require(!_usedSignatures[message], "Signature has already been used");
+        // Check for replay attack (message signature can be used only once)
+        if (_usedSignatures[message])
+            revert UsedSignature();
         _usedSignatures[message] = true;
         
         if (commissionSettings.commissionIsEnabled) {
-            if(commissionSettings.commissionType == CommissionType.NativeCurrency) 
+            if (commissionSettings.commissionType == CommissionType.NativeCurrency) 
                 _checkPayedCommissionInNative();
             else
                 // amount to burn = amount - commission
@@ -155,7 +173,8 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
         (bool success, ) = _token.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
 
         // In case if the burn call fails
-        require(success, "conversionOut Failed");
+        if (!success)
+            revert ConversionFailed();
 
         emit ConversionOut(_msgSender(), conversionId, amount);
     }
@@ -183,7 +202,7 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
 
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
 
-        //compose the message which was signed
+        // Compose the message which was signed
         bytes32 message = prefixed(
             keccak256(
                 abi.encodePacked(
@@ -196,11 +215,13 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
             )
         );
 
-        // check that the signature is from the authorizer
-        require(ecrecover(message, v, r, s) == _conversionAuthorizer, "Invalid request or signature");
+        // Check that the signature is from the authorizer
+        if (ecrecover(message, v, r, s) != _conversionAuthorizer)
+            revert InvalidRequestOrSignature();
 
-        //check for replay attack (message signature can be used only once)
-        require(! _usedSignatures[message], "Signature has already been used");
+        // Check for replay attack (message signature can be used only once)
+        if (_usedSignatures[message])
+            revert UsedSignature();
         _usedSignatures[message] = true;
 
         // Check for the supply
@@ -211,31 +232,35 @@ contract TokenConversionManager is Commission, ReentrancyGuard {
                 _checkPayedCommissionInNative();
 
                 (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
-                require(success, "ConversionIn Failed");
+                if (!success)
+                    revert ConversionFailed();
             } else {
                 (bool mintSuccess, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
-                require(mintSuccess, "Mint & ConversionIn Failed");
-
+                if (!mintSuccess)
+                    revert ConversionMintFailed();
                 amount -= _takeCommissionInTokenInput(amount);
-                require(amount > 0, "Invalid amount after commission deduction");
+                if (amount == 0)
+                    revert InvalidCommissionDeduction();
 
                 (bool transferSuccess, ) = _token.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, amount));
-                require(transferSuccess, "Transfer & ConversionIn Failed");
+                if (!transferSuccess)
+                    revert ConversionTransferFailed();
             }
         } else {
             (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
-            require(success, "ConversionIn Failed");
+            if (!success)
+                revert ConversionFailed();
         }
 
         emit ConversionIn(to, conversionId, amount);
     }
 
-    /// builds a prefixed hash to mimic the behavior of ethSign.
+    /// Builds a prefixed hash to mimic the behavior of ethSign.
     function prefixed(bytes32 hash) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash));
     }
 
-    function getconversionAuthorizer() external view returns(address) {
+    function getConversionAuthorizer() external view returns(address) {
         return _conversionAuthorizer;
     }
 

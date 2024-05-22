@@ -1,8 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-contract-sizer");
-const fs = require('fs');
-
-require('dotenv').config({ path: '.env'});
+require("@nomicfoundation/hardhat-verify");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -12,7 +10,7 @@ module.exports = {
       optimizer: {
         enabled: true,
         runs: 200,
-      },
+      }
     }
-  },
+  }
 };
