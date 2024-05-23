@@ -12,6 +12,7 @@ error ConversionFailed();
 error ConversionMintFailed();
 error ConversionTransferFailed();
 error InvalidCommissionDeduction();
+error MintingMoreThanMaxSupply();
 
 contract TokenConversionManagerV2 is Commission {
     address private _conversionAuthorizer; // Authorizer Address for the conversion
@@ -38,7 +39,7 @@ contract TokenConversionManagerV2 is Commission {
     // Modifiers
     modifier checkLimits(uint256 amount) {
         // Check for min, max per transaction limits
-        if (amount < _perTxnMinAmount && amount > _perTxnMaxAmount)
+        if (amount < _perTxnMinAmount || amount > _perTxnMaxAmount)
             revert ViolationOfTxAmountLimits();
         _;
     }
@@ -86,7 +87,7 @@ contract TokenConversionManagerV2 is Commission {
         onlyOwner 
     {
         // Check for the valid inputs
-        if (perTxnMinAmount < 0 && perTxnMaxAmount <= perTxnMinAmount && maxSupply < 0) 
+        if (perTxnMinAmount == 0 || perTxnMaxAmount <= perTxnMinAmount || maxSupply == 0) 
             revert InvalidUpdateConfigurations();
 
         // Update the configurations
@@ -118,7 +119,7 @@ contract TokenConversionManagerV2 is Commission {
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
 
         // Check for the Balance
-        if (IERC20(_token).balanceOf(_msgSender()) < amount) 
+        if (IERC20(TOKEN).balanceOf(_msgSender()) < amount) 
             revert NotEnoughBalance();
         
         // Compose the message which was signed
@@ -154,7 +155,7 @@ contract TokenConversionManagerV2 is Commission {
             
         // Burn the tokens on behalf of the Wallet
         // token.burnFrom(_msgSender(), amount)
-        (bool success, ) = _token.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
+        (bool success, ) = TOKEN.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
 
         // In case if the burn call fails
         if (!success)
@@ -180,10 +181,8 @@ contract TokenConversionManagerV2 is Commission {
         payable
         checkLimits(amount) 
         nonReentrant 
+        notZeroAddress(to)
     {
-        // Check for the valid destimation wallet
-        require(to != address(0), "Invalid wallet");
-
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
 
         // Compose the message which was signed
@@ -209,29 +208,30 @@ contract TokenConversionManagerV2 is Commission {
         _usedSignatures[message] = true;
 
         // Check for the supply
-        require(IERC20(_token).totalSupply() + amount <= _maxSupply, "Invalid Amount");
+        if(IERC20(TOKEN).totalSupply() + amount > _maxSupply)
+            revert MintingMoreThanMaxSupply();
 
         if (commissionSettings.commissionIsEnabled) {
             if (commissionSettings.commissionType == CommissionType.FixedNativeTokens) {
                 _checkPayedCommissionInNative();
 
-                (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
+                (bool success, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
                 if (!success)
                     revert ConversionFailed();
             } else {
-                (bool mintSuccess, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
+                (bool mintSuccess, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
                 if (!mintSuccess)
                     revert ConversionMintFailed();
                 amount -= _takeCommissionInTokenInput(amount);
                 if (amount == 0)
                     revert InvalidCommissionDeduction();
 
-                (bool transferSuccess, ) = _token.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, amount));
+                (bool transferSuccess, ) = TOKEN.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, amount));
                 if (!transferSuccess)
                     revert ConversionTransferFailed();
             }
         } else {
-            (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
+            (bool success, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
             if (!success)
                 revert ConversionFailed();
         }
