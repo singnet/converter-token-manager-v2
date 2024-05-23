@@ -57,20 +57,30 @@ abstract contract Commission is Ownable, ReentrancyGuard {
 
     // Events
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
-    event FixedNativeTokensCommissionClaim(uint256 indexed time);
-    event UpdateCommissionConfiguration(
-        bool commissionIsEnabled,
-        uint8 convertTokenPercentage,
-        uint8 receiverCommissionProportion,
+    event UpdateCommissionType(
+        bool indexed commissionIsEnabled,
+        uint256 indexed commissionType,
+        uint256 indexed timestamp     // matches `Update...Commission` events
+    );
+    event UpdateFixedNativeTokensCommission( 
+        uint256 indexed timestamp,
+        uint256 fixedNativeTokensCommission
+    );
+    event UpdateFixedTokensCommission( 
+        uint256 indexed timestamp,
+        uint256 fixedTokenCommission
+    );
+     event UpdatePercentageTokensCommission( 
+        uint256 indexed timestamp,
+        uint256 convertTokenPercentage,
+        uint256 pointOffsetShifter
+    );
+    event UpdateCommissionProportions(
+        uint8 receiverCommissionProportion, 
         uint8 bridgeOwnerCommissionProportion,
-        uint16 pointOffsetShifter,
-        uint256 commissionType,
-        uint256 fixedTokenCommission,
-        uint256 fixedNativeTokensCommission,
-        address payable receiverCommission,
-        address payable bridgeOwner,
         uint256 updateTimestamp
     );
+    event FixedNativeTokensCommissionClaim(uint256 indexed time);
 
     // Check that the caller is a recipient of the commission.
     modifier isCommissionReceiver(address caller) {
@@ -99,12 +109,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         bool commissionIsEnabled,
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
-      /* uint8 convertTokenPercentage,
-        uint16 pointOffsetShifter,
-        uint256 commissionType,
-        uint256 fixedNativeTokensCommission,*/
         uint256 fixedNativeTokensCommissionLimit,
-       // uint256 fixedTokenCommission,
         address payable receiverCommission,
         address payable bridgeOwner
     ) 
@@ -118,28 +123,27 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         if (fixedNativeTokensCommissionLimit == 0)
             revert ZeroFixedNativeTokensCommissionLimit();
         FIXED_NATIVE_TOKEN_COMMISSION_LIMIT = fixedNativeTokensCommissionLimit;
-
-        if (commissionIsEnabled) 
+ 
+        uint256 timestamp = block.timestamp;
+        if (commissionIsEnabled) {
             commissionSettings.commissionIsEnabled = true;
+            emit UpdateCommissionType(true, 0, timestamp);
+        }
 
         updateCommissionProportions(receiverCommissionProportion, bridgeOwnerCommissionProportion);
 
         commissionSettings.bridgeOwner = payable(bridgeOwner);
-        if(receiverCommission != address(0))
-            commissionSettings.receiverCommission = payable(receiverCommission);
+        emit UpdateReceiver(address(0), bridgeOwner);
 
-        emit UpdateCommissionConfiguration(
-            commissionIsEnabled,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            receiverCommission,
-            bridgeOwner,
-            block.timestamp
+        if(receiverCommission != address(0)) {
+            commissionSettings.receiverCommission = payable(receiverCommission);
+            emit UpdateReceiver(address(0), receiverCommission);
+        }
+
+        emit UpdateCommissionProportions(
+            receiverCommissionProportion, 
+            bridgeOwnerCommissionProportion, 
+            timestamp
         );
     }
 
@@ -270,52 +274,8 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      */
     function disableCommission() external onlyOwner {
         commissionSettings.commissionIsEnabled = false;
-    }
 
-    /**
-     * @notice Method for updating commission configuration
-     * @param commissionIsEnabled - enable/disable commission on bridge contract
-     * @param receiverCommissionProportion - bridge commission receiver proportion
-     * @param bridgeOwnerCommissionProportion - bridge owner commission proportion
-     * @param newConvertTokenPercentage - percenatage for charging commission in tokens
-     * @param newCommissionType - newCommissionType type of charging commission
-     * @param newFixedTokenCommission - fix token amount for charging commission in tokens
-     * @param newFixedNativeTokensCommission - fix native token amount for charging commission
-     * @param receiverCommission - bridge commission receiver address
-     * @param bridgeOwner - bridge owner commission receiver address
-     */
-    function updateCommissionConfiguration(
-        bool commissionIsEnabled,
-        uint8 receiverCommissionProportion,
-        uint8 bridgeOwnerCommissionProportion,
-        uint8 newConvertTokenPercentage,
-        uint16 newPointOffsetShifter,
-        uint256 newCommissionType,
-        uint256 newFixedTokenCommission,
-        uint256 newFixedNativeTokensCommission,
-        address payable receiverCommission,
-        address payable bridgeOwner
-    )
-        external onlyOwner
-      
-    {
-   
-        _checkPercentageLimit(newConvertTokenPercentage, newPointOffsetShifter);
-
-
-        emit UpdateCommissionConfiguration(
-            commissionIsEnabled,
-            newConvertTokenPercentage,
-            receiverCommissionProportion,
-            bridgeOwnerCommissionProportion,
-            newPointOffsetShifter,
-            newCommissionType,
-            newFixedTokenCommission,
-            newFixedNativeTokensCommission,
-            receiverCommission,
-            bridgeOwner,
-            block.timestamp
-        );
+        emit UpdateCommissionType(false, uint256(commissionSettings.commissionType), block.timestamp);
     }
 
     function updateCommissionProportions(
@@ -329,7 +289,6 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             newBridgeOwnerCommissionProportion
         ) 
     {
-
         // receiverCommissionProportion can be null
         if (commissionSettings.receiverCommissionProportion != newReceiverCommissionProportion)
             commissionSettings.receiverCommissionProportion = newReceiverCommissionProportion; 
@@ -340,11 +299,20 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         )  
             commissionSettings.bridgeOwnerCommissionProportion = newBridgeOwnerCommissionProportion; 
 
+        emit UpdateCommissionProportions(
+            commissionSettings.receiverCommissionProportion, 
+            commissionSettings.bridgeOwnerCommissionProportion,
+            block.timestamp
+        );
+
     }
 
     function enableAndUpdateFixedNativeTokensCommission(uint256 newFixedNativeTokensCommission) external onlyOwner {
-        if(!commissionSettings.commissionIsEnabled) 
+        uint256 timestamp = block.timestamp;
+
+        if(!commissionSettings.commissionIsEnabled) {
             commissionSettings.commissionIsEnabled = true;
+        }
 
         // enable type of fixed native token commission
         if(commissionSettings.commissionType != CommissionType.FixedNativeTokens) {
@@ -354,16 +322,20 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             )
                 revert EnablingZeroFixedNativeTokenCommission();
             commissionSettings.commissionType = CommissionType.FixedNativeTokens;
+            emit UpdateCommissionType(true, 2, timestamp);
         }
 
         // update amount of fixed native token commission
         if (newFixedNativeTokensCommission != 0) {
             _checkFixedFixedNativeTokensLimit(newFixedNativeTokensCommission);
             commissionSettings.fixedNativeTokensCommission = newFixedNativeTokensCommission;
+            emit UpdateFixedNativeTokensCommission(timestamp, newFixedNativeTokensCommission);
         }
     }
 
     function enableAndUpdateFixedTokensCommission(uint256 newFixedTokenCommission) external onlyOwner {
+        uint256 timestamp = block.timestamp;
+
         if(!commissionSettings.commissionIsEnabled) 
             commissionSettings.commissionIsEnabled = true;
 
@@ -375,11 +347,13 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             )
                 revert EnablingZeroFixedTokenCommission();
             commissionSettings.commissionType = CommissionType.FixedTokens;
+            emit UpdateCommissionType(true, 1, timestamp);
         }
             
         // update amount of fixed token commission
         if (newFixedTokenCommission != 0) {
             commissionSettings.fixedTokenCommission = newFixedTokenCommission;
+            emit UpdateFixedTokensCommission(timestamp, newFixedTokenCommission);
         }
     }
 
@@ -390,23 +364,32 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         external 
         onlyOwner 
     {
+        uint256 timestamp = block.timestamp;
+
         if(!commissionSettings.commissionIsEnabled) 
             commissionSettings.commissionIsEnabled = true;
 
         // enable type of token commission in percentage
         if(commissionSettings.commissionType != CommissionType.PercentageTokens) {
             if(
-                newConvertTokenPercentage == 0 &&
-                commissionSettings.convertTokenPercentage == 0
+                (newConvertTokenPercentage == 0 && commissionSettings.convertTokenPercentage == 0) || 
+                (newPointOffsetShifter == 0 && commissionSettings.pointOffsetShifter == 0)
             )
                 revert EnablingZeroTokenPercentageCommission();
             commissionSettings.commissionType = CommissionType.PercentageTokens;
+            emit UpdateCommissionType(true, 0, timestamp);
         }
 
         // update amount of token commission in percentage
-        if (_checkPercentageLimit(newConvertTokenPercentage, newPointOffsetShifter)) {
+        if (newConvertTokenPercentage != 0 && newPointOffsetShifter != 0) {
+            _checkPercentageLimit(newConvertTokenPercentage, newPointOffsetShifter);
             commissionSettings.pointOffsetShifter = newPointOffsetShifter;
             commissionSettings.convertTokenPercentage = newConvertTokenPercentage;
+            emit UpdatePercentageTokensCommission(
+                timestamp, 
+                newConvertTokenPercentage, 
+                newPointOffsetShifter
+            );
         }   
     }
 
@@ -532,14 +515,8 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      */
     // convertTokenPercentage <= pointOffsetShifter in order to represent 
     // floating point fees with one decimal place
-    function _checkPercentageLimit(uint8 convertTokenPercentage, uint16 pointOffsetShifter) private pure returns(bool) {
-        if (
-            convertTokenPercentage != 0 &&
-            pointOffsetShifter != 0 &&
-            convertTokenPercentage > pointOffsetShifter) 
-        {
+    function _checkPercentageLimit(uint8 convertTokenPercentage, uint16 pointOffsetShifter) private pure {
+        if (convertTokenPercentage > pointOffsetShifter) 
             revert PercentageLimitExceeded();
-        }
-        return true;
     }
 }
