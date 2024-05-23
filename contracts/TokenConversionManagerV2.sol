@@ -46,45 +46,29 @@ contract TokenConversionManagerV2 is Commission {
     constructor(
         address token, 
         bool commissionIsEnabled,
-        uint8 convertTokenPercentage,
         uint8 receiverCommissionProportion,
         uint8 bridgeOwnerCommissionProportion,
-        uint16 pointOffsetShifter,
-        uint256 commissionType,
-        uint256 fixedNativeTokenCommission,
         uint256 fixedNativeTokenCommissionLimit,
-        uint256 fixedTokenCommission,
         address payable commissionReceiver,
         address payable bridgeOwner
     ) 
         Commission(
             token,
             commissionIsEnabled,
-            convertTokenPercentage,
             receiverCommissionProportion,
             bridgeOwnerCommissionProportion,
-            pointOffsetShifter,
-            commissionType,
-            fixedNativeTokenCommission,
             fixedNativeTokenCommissionLimit,
-            fixedTokenCommission,
             commissionReceiver,
             bridgeOwner
         )
-    {
-        if (token == address(0))
-            revert ZeroAddress();
-        
+    {   
         _conversionAuthorizer = _msgSender(); 
     }
 
     /**
     * @dev To update the authorizer who can authorize the conversions.
     */
-    function updateAuthorizer(address newAuthorizer) external onlyOwner {
-        if (newAuthorizer == address(0))
-            revert ZeroAddress();
-
+    function updateAuthorizer(address newAuthorizer) external notZeroAddress(newAuthorizer) onlyOwner {
         _conversionAuthorizer = newAuthorizer;
 
         emit NewAuthorizer(newAuthorizer);
@@ -160,7 +144,7 @@ contract TokenConversionManagerV2 is Commission {
         _usedSignatures[message] = true;
         
         if (commissionSettings.commissionIsEnabled) {
-            if (commissionSettings.commissionType == CommissionType.NativeCurrency) 
+            if (commissionSettings.commissionType == CommissionType.FixedNativeTokens) 
                 _checkPayedCommissionInNative();
             else
                 // amount to burn = amount - commission
@@ -228,7 +212,7 @@ contract TokenConversionManagerV2 is Commission {
         require(IERC20(_token).totalSupply() + amount <= _maxSupply, "Invalid Amount");
 
         if (commissionSettings.commissionIsEnabled) {
-            if (commissionSettings.commissionType == CommissionType.NativeCurrency) {
+            if (commissionSettings.commissionType == CommissionType.FixedNativeTokens) {
                 _checkPayedCommissionInNative();
 
                 (bool success, ) = _token.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
