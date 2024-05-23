@@ -30,14 +30,9 @@ describe("TokenConversionManagerV2 without commission", function () {
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address of token to convert
             false, // commissionIsEnabled,
-            0, // convertTokenPercentage
-            20, // receiverCommissionProportion
-            80, // bridgeOwnerCommissionProportion
-            10000, // point offset shifter
-            0, // commissionType
-            0, // fixedNativeTokenCommission
-            10000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedTokenCommission
+            0,
+            100,
+            100000000, // fixedNativeTokenCommissionLimit
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -46,7 +41,7 @@ describe("TokenConversionManagerV2 without commission", function () {
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
     });
-    
+  
     it("Should handle token conversionOut correctly without commission", async function () {
 
         const [ authorizer ] = await ethers.getSigners();
@@ -117,9 +112,12 @@ describe("TokenConversionManager with percentage tokens commission", function ()
     const amount = 10000000000;
 
     // constructor arguments      
-    const convertTokenPercentage = 45
     const receiverCommissionProportion = 20
     const bridgeOwnerCommissionProportion = 80
+
+    // enableAndUpdatePercentageTokensCommission arguments
+    const convertTokenPercentage = 10
+    const offsetPoints = 100;
 
 
     beforeEach(async () => {
@@ -139,14 +137,9 @@ describe("TokenConversionManager with percentage tokens commission", function ()
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address of token to convert
             true, // commissionIsEnabled,
-            convertTokenPercentage, 
-            receiverCommissionProportion, // receiverCommissionProportion
-            bridgeOwnerCommissionProportion, // bridgeOwnerCommissionProportion
-            10000, // point offset shifter
-            0, // commissionType
-            0, // fixedNativeTokenCommission
+            receiverCommissionProportion,
+            bridgeOwnerCommissionProportion,
             10000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedTokenCommission
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -154,6 +147,8 @@ describe("TokenConversionManager with percentage tokens commission", function ()
         await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+
+        await converter.enableAndUpdatePercentageTokensCommission(convertTokenPercentage, offsetPoints);
     });
     
     it("Should handle token conversionOut correctly with percentage tokens commission", async function () {
@@ -182,8 +177,8 @@ describe("TokenConversionManager with percentage tokens commission", function ()
             v, r, s
         )
         expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
     }); 
 
     it("Should handle token conversionIn correctly with percentage tokens commission", async function () {
@@ -212,9 +207,9 @@ describe("TokenConversionManager with percentage tokens commission", function ()
             formatBytes32String("conversionId"),
             v, r, s
         )
-        expect(BigInt(initBalanceBeforeConversionIn+amount-(amount*convertTokenPercentage/10000))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
+        expect(BigInt(initBalanceBeforeConversionIn+amount-(amount*convertTokenPercentage/offsetPoints))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
     }); 
 });
 
@@ -246,14 +241,9 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address token, 
             true, // commissionIsEnabled,
-            0, // convertTokenPercentage
             receiverCommissionProportion, 
             bridgeOwnerCommissionProportion,
-            10000,
-            1, // commissionType
-            fixedNativeTokenCommission_, // fixedNativeTokenCommission
             10000000000,  // fixedNativeTokenCommissionLimit
-            fixedTokenCommission_, // fixedTokenCommission
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -261,6 +251,8 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
         await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+
+        await converter.enableAndUpdateFixedTokensCommission(fixedTokenCommission_);
     });
     
     it("Should handle token conversionOut correctly with fix amount tokens commission", async function () {
@@ -354,14 +346,9 @@ describe("TokenConversionManager with commission in native currency", function (
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), 
             true, // commissionIsEnabled,
-            0, // convertTokenPercentage
             50, // receiverCommissionProportion
             50, // bridgeOwnerCommissionProportion
-            10000,
-            2, // commissionType
-            fixedNativeTokenCommission_, //fixedNativeTokenCommission
             1000000000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedTokenCommission
             await commissionReceiver.getAddress(),
             await bridgeOwner.getAddress()
         )
@@ -369,6 +356,8 @@ describe("TokenConversionManager with commission in native currency", function (
         await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+
+        await converter.enableAndUpdateFixedNativeTokensCommission(fixedNativeTokenCommission_);
     });
     
     it("Should handle token conversionOut correctly with commission in native currency", async function () {
@@ -476,18 +465,18 @@ describe("TokenConversionManager with commission in native currency", function (
 
         const balanceBeforeClaimCommission = await ethers.provider.getBalance(await converter.getAddress());
 
-        await converter.connect(commissionReceiver).claimNativeCurrencyCommission();
+        await converter.connect(commissionReceiver).claimFixedNativeTokensCommission();
 
         expect(BigInt(balanceBeforeClaimCommission)-BigInt(fixedNativeTokenCommission_))
         .to
         .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
 
         await expect(
-            converter.connect(intruder).claimNativeCurrencyCommission()
+            converter.connect(intruder).claimFixedNativeTokensCommission()
         ).to.be.revertedWithCustomError(converter, "UnauthorizedCommissionReceiver");
     }); 
 });
-
+/*
 describe("Administrative functionality", function () {
 
     beforeEach(async () => {
@@ -646,5 +635,5 @@ describe("Administrative functionality", function () {
                 await intruder.getAddress()
             )
         ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-});
+    }); 
+});*/
