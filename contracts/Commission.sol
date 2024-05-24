@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 // Errors
 error CommissionTransferFailed();
 error NativeClaimFailed();
-error InvalidUpdateConfigurations();
 error NotEnoughBalance();
 error ZeroAddress();
 error ViolationOfFixedNativeTokensLimit();
@@ -19,7 +18,6 @@ error ZeroFixedNativeTokensCommissionLimit();
 error EnablingZeroFixedNativeTokenCommission();
 error EnablingZeroFixedTokenCommission();
 error EnablingZeroTokenPercentageCommission();
-error CommissionIsNotEnabled();
 
 
 /// @title Commission module for bridge contract
@@ -98,7 +96,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
     }
 
     modifier notZeroAddress(address account) {
-        if(account == address(0))
+        if (account == address(0))
             revert ZeroAddress();
         _;
     }
@@ -134,7 +132,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         commissionSettings.bridgeOwner = payable(bridgeOwner);
         emit UpdateReceiver(address(0), bridgeOwner);
 
-        if(receiverCommission != address(0)) {
+        if (receiverCommission != address(0)) {
             commissionSettings.receiverCommission = payable(receiverCommission);
             emit UpdateReceiver(address(0), receiverCommission);
         }
@@ -171,13 +169,13 @@ abstract contract Commission is Ownable, ReentrancyGuard {
     {
         uint256 timestamp = block.timestamp;
 
-        if(!commissionSettings.commissionIsEnabled) {
+        if (!commissionSettings.commissionIsEnabled) {
             commissionSettings.commissionIsEnabled = true;
         }
 
         // enable type of fixed native token commission
-        if(commissionSettings.commissionType != CommissionType.FixedNativeTokens) {
-            if(newFixedNativeTokensCommission == 0)
+        if ( commissionSettings.commissionType != CommissionType.FixedNativeTokens) {
+            if (newFixedNativeTokensCommission == 0)
                 revert EnablingZeroFixedNativeTokenCommission();
             commissionSettings.commissionType = CommissionType.FixedNativeTokens;
             emit UpdateCommissionType(true, 2, timestamp);
@@ -187,7 +185,6 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         _checkFixedFixedNativeTokensLimit(newFixedNativeTokensCommission);
         commissionSettings.fixedNativeTokensCommission = newFixedNativeTokensCommission;
         emit UpdateFixedNativeTokensCommission(timestamp, newFixedNativeTokensCommission);
-        }
     }
 
     /**
@@ -199,12 +196,12 @@ abstract contract Commission is Ownable, ReentrancyGuard {
     function enableAndUpdateFixedTokensCommission(uint256 newFixedTokenCommission) external onlyOwner {
         uint256 timestamp = block.timestamp;
 
-        if(!commissionSettings.commissionIsEnabled) 
+        if (!commissionSettings.commissionIsEnabled) 
             commissionSettings.commissionIsEnabled = true;
 
         // enable type of fixed token commission
-        if(commissionSettings.commissionType != CommissionType.FixedTokens) {
-            if(newFixedTokenCommission == 0)
+        if (commissionSettings.commissionType != CommissionType.FixedTokens) {
+            if (newFixedTokenCommission == 0)
                 revert EnablingZeroFixedTokenCommission();
             commissionSettings.commissionType = CommissionType.FixedTokens;
             emit UpdateCommissionType(true, 1, timestamp);
@@ -233,12 +230,12 @@ abstract contract Commission is Ownable, ReentrancyGuard {
     {
         uint256 timestamp = block.timestamp;
 
-        if(!commissionSettings.commissionIsEnabled) 
+        if (!commissionSettings.commissionIsEnabled) 
             commissionSettings.commissionIsEnabled = true;
 
         // enable type of token commission in percentage
-        if(commissionSettings.commissionType != CommissionType.PercentageTokens) {
-            if(newConvertTokenPercentage == 0 || newPointOffsetShifter == 0)
+        if (commissionSettings.commissionType != CommissionType.PercentageTokens) {
+            if (newConvertTokenPercentage == 0 || newPointOffsetShifter == 0)
                 revert EnablingZeroTokenPercentageCommission();
             commissionSettings.commissionType = CommissionType.PercentageTokens;
             emit UpdateCommissionType(true, 0, timestamp);
@@ -499,20 +496,14 @@ abstract contract Commission is Ownable, ReentrancyGuard {
                 _calculateCommissionBridgeOwnerProportion(commissionSum), 
                 commissionSum
             );
-        } else if (commissionSettings.commissionType == CommissionType.FixedTokens) {
+        } else {
             return (
                 _calculateCommissionBridgeOwnerProportion(
                     commissionSettings.fixedTokenCommission
                 ), 
                 commissionSettings.fixedTokenCommission
             );
-        } else if (commissionSettings.commissionType == CommissionType.FixedNativeTokens) {
-            return (
-                _calculateCommissionBridgeOwnerProportion(commissionSettings.fixedNativeTokensCommission),
-                (commissionSettings.fixedNativeTokensCommission)
-            );
         }
-        return (0, 0);
     }
 
     /**
@@ -526,8 +517,8 @@ abstract contract Commission is Ownable, ReentrancyGuard {
 
     /**
      * @notice Method to disable commission
+     * @param fixedNativeTokensCommission - value native tokens commission value for check
      */
-
     function _checkFixedFixedNativeTokensLimit(uint256 fixedNativeTokensCommission) private view {
         if (fixedNativeTokensCommission > FIXED_NATIVE_TOKEN_COMMISSION_LIMIT)
             revert ViolationOfFixedNativeTokensLimit();

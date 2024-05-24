@@ -10,8 +10,7 @@ error InvalidRequestOrSignature();
 error UsedSignature();
 error ConversionFailed();
 error ConversionMintFailed();
-error ConversionTransferFailed();
-error InvalidCommissionDeduction();
+error InvalidUpdateConfigurations();
 error MintingMoreThanMaxSupply();
 
 contract TokenConversionManagerV2 is Commission {
@@ -68,6 +67,7 @@ contract TokenConversionManagerV2 is Commission {
 
     /**
     * @dev To update the authorizer who can authorize the conversions.
+    * @param newAuthorizer - new contract authorizer address
     */
     function updateAuthorizer(address newAuthorizer) external notZeroAddress(newAuthorizer) onlyOwner {
         _conversionAuthorizer = newAuthorizer;
@@ -77,6 +77,9 @@ contract TokenConversionManagerV2 is Commission {
 
     /**
     * @dev To update the per transaction limits for the conversion and to provide max total supply 
+    * @param perTxnMinAmount - min amount for conversion
+    * @param perTxnMaxAmount - max amount for conversion
+    * @param maxSupply - value of max supply for bridging token
     */
     function updateConfigurations(
         uint256 perTxnMinAmount, 
@@ -103,6 +106,9 @@ contract TokenConversionManagerV2 is Commission {
     * @dev To convert the tokens from Ethereum to non Ethereum network. 
     * The tokens which needs to be convereted will be burned on the host network.
     * The conversion authorizer needs to provide the signature to call this function.
+    * @param amount - conversion amount
+    * @param conversionId - hashed conversion id
+    * @param v - split authorizer signature
     */
     function conversionOut(
         uint256 amount, 
@@ -116,11 +122,8 @@ contract TokenConversionManagerV2 is Commission {
         checkLimits(amount) 
         nonReentrant 
     {
+        bool success;
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
-
-        // Check for the Balance
-        if (IERC20(TOKEN).balanceOf(_msgSender()) < amount) 
-            revert NotEnoughBalance();
         
         // Compose the message which was signed
         bytes32 message = prefixed(
@@ -145,18 +148,16 @@ contract TokenConversionManagerV2 is Commission {
         _usedSignatures[message] = true;
         
         if (commissionSettings.commissionIsEnabled) {
-            if (commissionSettings.commissionType == CommissionType.FixedNativeTokens) 
+            if (commissionSettings.commissionType == CommissionType.FixedNativeTokens) {
                 _checkPayedCommissionInNative();
-            else
-                // amount to burn = amount - commission
-                // commission is transffered in '_takeCommissionInTokenOutput()'
-                amount -= _takeCommissionInTokenOutput(amount);
+                (success, ) = TOKEN.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
+            } else {
+                (success, ) = TOKEN.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount - _takeCommissionInTokenOutput(amount)));
+            }
+        } else {
+            (success, ) = TOKEN.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
         }
-            
-        // Burn the tokens on behalf of the Wallet
-        // token.burnFrom(_msgSender(), amount)
-        (bool success, ) = TOKEN.call(abi.encodeWithSelector(BURN_SELECTOR, _msgSender(), amount));
-
+                    
         // In case if the burn call fails
         if (!success)
             revert ConversionFailed();
@@ -168,6 +169,10 @@ contract TokenConversionManagerV2 is Commission {
     * @dev To convert the tokens from non Ethereum to Ethereum network. 
     * The tokens which needs to be convereted will be minted on the host network.
     * The conversion authorizer needs to provide the signature to call this function.
+    * @param to - distination conversion operation address for mint converted tokens
+    * @param amount - conversion amount
+    * @param conversionId - hashed conversion id
+    * @param v - split authorizer signature
     */
     function conversionIn(
         address to, 
@@ -183,6 +188,8 @@ contract TokenConversionManagerV2 is Commission {
         nonReentrant 
         notZeroAddress(to)
     {
+        bool success;
+
         // Check for non zero value for the amount is not needed as the Signature will not be generated for zero amount
 
         // Compose the message which was signed
@@ -208,33 +215,26 @@ contract TokenConversionManagerV2 is Commission {
         _usedSignatures[message] = true;
 
         // Check for the supply
-        if(IERC20(TOKEN).totalSupply() + amount > _maxSupply)
+        if (IERC20(TOKEN).totalSupply() + amount > _maxSupply)
             revert MintingMoreThanMaxSupply();
 
         if (commissionSettings.commissionIsEnabled) {
             if (commissionSettings.commissionType == CommissionType.FixedNativeTokens) {
                 _checkPayedCommissionInNative();
 
-                (bool success, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
-                if (!success)
-                    revert ConversionFailed();
+                (success, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
             } else {
-                (bool mintSuccess, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
-                if (!mintSuccess)
+                (success, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, address(this), amount));
+                if (!success)
                     revert ConversionMintFailed();
-                amount -= _takeCommissionInTokenInput(amount);
-                if (amount == 0)
-                    revert InvalidCommissionDeduction();
-
-                (bool transferSuccess, ) = TOKEN.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, amount));
-                if (!transferSuccess)
-                    revert ConversionTransferFailed();
+                (success, ) = TOKEN.call(abi.encodeWithSelector(TRANSFER_SELECTOR, to, amount - _takeCommissionInTokenInput(amount)));
             }
         } else {
-            (bool success, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
-            if (!success)
-                revert ConversionFailed();
+            (success, ) = TOKEN.call(abi.encodeWithSelector(MINT_SELECTOR, to, amount));
         }
+
+        if (!success)
+            revert ConversionFailed();
 
         emit ConversionIn(to, conversionId, amount);
     }

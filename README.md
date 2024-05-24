@@ -7,6 +7,7 @@ Recommended using WSLv2/Linux/MacOS with LTS Node >= 18 & NPM >= 10 version
 - [Installation](#installation)
 - [Commands to launch tests](#commands-to-launch-tests)
 - [Use Case](#use-case)
+- [Roles](#roles)
 - [Functionality](#functionality)
   - [Converter Contract functionality requirements](#converter-contract-functionality-requirements)
   - [Commission Contract functionality requirements](#commission-contract-functionality-requirements)
@@ -28,12 +29,27 @@ Recommended using WSLv2/Linux/MacOS with LTS Node >= 18 & NPM >= 10 version
     npm install
 ```
 
+## Compilation
+
+1. Install dependencies
+```bash
+    npx hardhat compile
+```
+
 ## Commands to launch tests
 The `Token.sol` file with a sample token contract is only needed to run the tests(Not for audit).
 
-2. Run Tests
+3. Run Tests
 ```bash
     npx hardhat test
+```
+
+## Test coverage
+The `Token.sol` file with a sample token contract is only needed to run the tests(Not for audit).
+
+4. Run Tests
+```bash
+    npx hardhat coverage
 ```
 
 # Use case
@@ -41,6 +57,13 @@ The `Token.sol` file with a sample token contract is only needed to run the test
 A contract is needed to burn and mint tokens as part of the bridge between blockchains.
 
 The contract will receive data about the transfer between different blockchains, including the signature that is generated on the backend, thereby verifying the transaction.
+
+# Roles
+
+1. Converter Contract Admin (Owner of contract) - can setup contract
+2. Commission Receiver ( 1st of 2 ) - can claiming commission 
+3. Bridge Owner Commission Receiver (2nd of 2) - can claiming commission
+4. User - can use conversion tokens functions
 
 # Functionality
 
@@ -139,10 +162,6 @@ The `Commission` contract module manages commission settings and calculations fo
 
 - **disableCommission**
   - **Description**: Disables the commission. Only callable by the contract owner.
-
-- **updateCommissionConfiguration**
-  - **Parameters**: Various commission settings
-  - **Description**: Updates the commission configuration.Only callable by the contract owner.
 
 - **updateReceiverCommission**
   - **Parameters**: `address newReceiverCommission`
