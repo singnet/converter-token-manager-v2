@@ -8,3 +8,4 @@ typechain-types
 # Dev files
 .secret
 .env
+arguments.js

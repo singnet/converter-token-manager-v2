@@ -30,14 +30,9 @@ describe("TokenConversionManagerV2 without commission", function () {
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address of token to convert
             false, // commissionIsEnabled,
-            0, // convertTokenPercentage
-            20, // receiverCommissionProportion
-            80, // bridgeOwnerCommissionProportion
-            10000, // point offset shifter
-            0, // commissionType
-            0, // fixedNativeTokenCommission
-            10000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedTokenCommission
+            0,
+            100,
+            100000000, // fixedNativeTokenCommissionLimit
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -46,7 +41,7 @@ describe("TokenConversionManagerV2 without commission", function () {
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
     });
-    
+  
     it("Should handle token conversionOut correctly without commission", async function () {
 
         const [ authorizer ] = await ethers.getSigners();
@@ -76,7 +71,7 @@ describe("TokenConversionManagerV2 without commission", function () {
         expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
         expect(BigInt(0)).to.equal(BigInt(await token.balanceOf(await commissionReceiver.getAddress())));
         expect(BigInt(0)).to.equal(BigInt(await token.balanceOf(await bridgeOwner.getAddress())));
-    }); 
+    });
 
     it("Should handle token conversionIn correctly without commission", async function () {
 
@@ -107,19 +102,52 @@ describe("TokenConversionManagerV2 without commission", function () {
         expect(BigInt(initBalanceBeforeConversionIn+amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
         expect(BigInt(0)).to.equal(BigInt(await token.balanceOf(await commissionReceiver.getAddress())));
         expect(BigInt(0)).to.equal(BigInt(await token.balanceOf(await bridgeOwner.getAddress())));
+    });
+
+    it("Should be revert token conversionIn correctly while token paused", async function () {
+
+        const [ authorizer ] = await ethers.getSigners();
+        // const initBalanceBeforeConversionIn = 1000000000000;
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress());
+
+        await token.pause();
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await expect(converter.connect(tokenHolder).conversionIn(
+            tokenHolder.getAddress(),
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        )).to.be.revertedWithCustomError(converter, "ConversionFailed")
     }); 
 });
 
-describe("TokenConversionManager with percentage tokens commission", function () {
+describe("TokenConversionManagerV2 with percentage tokens commission", function () {
     let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
     let token, converter;
 
     const amount = 10000000000;
 
     // constructor arguments      
-    const convertTokenPercentage = 45
     const receiverCommissionProportion = 20
     const bridgeOwnerCommissionProportion = 80
+
+    // enableAndUpdatePercentageTokensCommission arguments
+    const convertTokenPercentage = 10
+    const offsetPoints = 100;
 
 
     beforeEach(async () => {
@@ -139,14 +167,9 @@ describe("TokenConversionManager with percentage tokens commission", function ()
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address of token to convert
             true, // commissionIsEnabled,
-            convertTokenPercentage, 
-            receiverCommissionProportion, // receiverCommissionProportion
-            bridgeOwnerCommissionProportion, // bridgeOwnerCommissionProportion
-            10000, // point offset shifter
-            0, // commissionType
-            0, // fixedNativeTokenCommission
+            receiverCommissionProportion,
+            bridgeOwnerCommissionProportion,
             10000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedTokenCommission
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -154,8 +177,26 @@ describe("TokenConversionManager with percentage tokens commission", function ()
         await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+
+        await converter.enableAndUpdatePercentageTokensCommission(convertTokenPercentage, offsetPoints);
     });
-    
+
+    it("Should revert incorrect setup commission percentage limit exceeded", async function () {
+
+        let [ newOwnerContract ] = await ethers.getSigners();
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+        let badConvertTokenPercentage = 100;
+        let badOffsetPoints = 10;
+
+        await converter.disableCommission();
+
+        await expect(
+            converter.connect(newOwnerContract).enableAndUpdatePercentageTokensCommission(badConvertTokenPercentage, badOffsetPoints)
+        ).to.be.revertedWithCustomError(converter, "PercentageLimitExceeded");
+    }); 
+
     it("Should handle token conversionOut correctly with percentage tokens commission", async function () {
 
         const [ authorizer ] = await ethers.getSigners();
@@ -182,8 +223,8 @@ describe("TokenConversionManager with percentage tokens commission", function ()
             v, r, s
         )
         expect(BigInt(initBalanceBeforeConversionOut-amount)).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
     }); 
 
     it("Should handle token conversionIn correctly with percentage tokens commission", async function () {
@@ -212,18 +253,48 @@ describe("TokenConversionManager with percentage tokens commission", function ()
             formatBytes32String("conversionId"),
             v, r, s
         )
-        expect(BigInt(initBalanceBeforeConversionIn+amount-(amount*convertTokenPercentage/10000))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
-        expect(BigInt((amount*convertTokenPercentage/10000)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
+        expect(BigInt(initBalanceBeforeConversionIn+amount-(amount*convertTokenPercentage/offsetPoints))).to.equal(BigInt(await token.balanceOf(await tokenHolder.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*receiverCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(commissionReceiver.getAddress())));
+        expect(BigInt((amount*convertTokenPercentage/offsetPoints)*bridgeOwnerCommissionProportion/100)).to.equal(BigInt(await token.balanceOf(bridgeOwner.getAddress())));
+    }); 
+
+    it("Should handle token conversionIn correctly revert conversion by anavailable mint tokens for charge commission", async function () {
+
+        const [ authorizer ] = await ethers.getSigners();
+        const initBalanceBeforeConversionIn = 1000000000000;
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        await token.pause();
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await expect(converter.connect(tokenHolder).conversionIn(
+            tokenHolder.getAddress(),
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        )).to.be.revertedWithCustomError(converter, "ConversionMintFailed");
     }); 
 });
 
-describe("TokenConversionManager with fix amount tokens commission", function () {
+describe("TokenConversionManagerV2 with fix amount tokens commission", function () {
     let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
     let token, converter;
 
     const amount = 10000000000;
-    const fixedNativeTokenCommission_ = 200
+    // const fixedNativeTokenCommission_ = 200
     const fixedTokenCommission_ = 100
     const receiverCommissionProportion = 20
     const bridgeOwnerCommissionProportion = 80
@@ -246,14 +317,9 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), // address token, 
             true, // commissionIsEnabled,
-            0, // convertTokenPercentage
             receiverCommissionProportion, 
             bridgeOwnerCommissionProportion,
-            10000,
-            1, // commissionType
-            fixedNativeTokenCommission_, // fixedNativeTokenCommission
             10000000000,  // fixedNativeTokenCommissionLimit
-            fixedTokenCommission_, // fixedTokenCommission
             commissionReceiver.getAddress(), 
             bridgeOwner.getAddress()
         );
@@ -261,6 +327,8 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
         await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+
+        await converter.enableAndUpdateFixedTokensCommission(fixedTokenCommission_);
     });
     
     it("Should handle token conversionOut correctly with fix amount tokens commission", async function () {
@@ -327,7 +395,7 @@ describe("TokenConversionManager with fix amount tokens commission", function ()
     }); 
 });
 
-describe("TokenConversionManager with commission in native currency", function () {
+describe("TokenConversionManagerV2 with commission in native currency", function () {
     let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
     let token, converter;
 
@@ -354,14 +422,9 @@ describe("TokenConversionManager with commission in native currency", function (
         converter = await TokenConversionСonverter.deploy(
             await token.getAddress(), 
             true, // commissionIsEnabled,
-            0, // convertTokenPercentage
             50, // receiverCommissionProportion
             50, // bridgeOwnerCommissionProportion
-            10000,
-            2, // commissionType
-            fixedNativeTokenCommission_, //fixedNativeTokenCommission
             1000000000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedTokenCommission
             await commissionReceiver.getAddress(),
             await bridgeOwner.getAddress()
         )
@@ -369,6 +432,8 @@ describe("TokenConversionManager with commission in native currency", function (
         await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
         await converter.updateAuthorizer(await authorizer.getAddress())
         await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+
+        await converter.enableAndUpdateFixedNativeTokensCommission(fixedNativeTokenCommission_);
     });
     
     it("Should handle token conversionOut correctly with commission in native currency", async function () {
@@ -471,24 +536,138 @@ describe("TokenConversionManager with commission in native currency", function (
             tokenHolder.getAddress(),
             amount,
             formatBytes32String("conversionId"),
-            v, r, s, {value: fixedNativeTokenCommission_}
-        );
+            v, r, s, { value: fixedNativeTokenCommission_}
+        )
 
         const balanceBeforeClaimCommission = await ethers.provider.getBalance(await converter.getAddress());
 
-        await converter.connect(commissionReceiver).claimNativeCurrencyCommission();
+        await converter.connect(commissionReceiver).claimFixedNativeTokensCommission();
 
         expect(BigInt(balanceBeforeClaimCommission)-BigInt(fixedNativeTokenCommission_))
         .to
         .equal(BigInt(await ethers.provider.getBalance(await converter.getAddress())));
 
         await expect(
-            converter.connect(intruder).claimNativeCurrencyCommission()
+            converter.connect(commissionReceiver).claimFixedNativeTokensCommission()
+        ).to.be.revertedWithCustomError(converter, "NotEnoughBalance");
+
+        await expect(
+            converter.connect(intruder).claimFixedNativeTokensCommission()
         ).to.be.revertedWithCustomError(converter, "UnauthorizedCommissionReceiver");
     }); 
 });
 
-describe("Administrative functionality", function () {
+describe("TokenConversionManagerV2 with commission in native currency reverts", function () {
+    let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
+    let token, converter;
+
+    const amount = 10000000000;
+    const fixedNativeTokenCommission_ = 200 // wei
+    // const fixedTokenCommission_ = 100
+
+    beforeEach(async () => {
+        [
+          authorizer,
+          tokenHolder,
+          commissionReceiver,
+          bridgeOwner,
+          newAuthorizer
+        ] = await ethers.getSigners();
+        
+        const Token = await ethers.getContractFactory("Token");
+        token = await Token.deploy("SingularityNET Token", "AGIX");
+        
+        await token.mint(tokenHolder.address, 1000000000000);  // 10k      
+
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
+
+        converter = await TokenConversionСonverter.deploy(
+            await token.getAddress(), 
+            true, // commissionIsEnabled,
+            50, // receiverCommissionProportion
+            50, // bridgeOwnerCommissionProportion
+            1000000000000000,  // fixedNativeTokenCommissionLimit
+            await commissionReceiver.getAddress(),
+            await bridgeOwner.getAddress()
+        )
+
+        await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
+        await converter.updateAuthorizer(await authorizer.getAddress())
+        await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+    });
+
+    it("Should revert at enabling zero fixed native token commission", async function () {
+        let [ newOwnerContract ] = await ethers.getSigners();
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+
+        await expect(
+            converter.connect(newOwnerContract).enableAndUpdateFixedNativeTokensCommission(0)
+        ).to.be.revertedWithCustomError(converter, "EnablingZeroFixedNativeTokenCommission");
+
+    });
+
+    it("Should handle token conversionOut correctly revert w/o charged native commission", async function () {
+
+        const [ authorizer ] = await ethers.getSigners();
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionOut", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+        
+       
+        await expect(converter.connect(tokenHolder).conversionOut(
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        )).to.be.revertedWithPanic(0x12)
+    }); 
+
+    it("Should handle token conversionIn correctly revert w/o charged native commission", async function () {
+
+        const [ authorizer ] = await ethers.getSigners();
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await expect(converter.connect(tokenHolder).conversionIn(
+            tokenHolder.getAddress(),
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        )).to.be.revertedWithPanic(0x12)
+    });
+});
+
+describe("TokenConversionManagerV2 - Check unauthorized and invalid operations", function () {
+    let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
+    let token, converter;
+
+    const amount = 10000000000;
 
     beforeEach(async () => {
         [
@@ -496,34 +675,321 @@ describe("Administrative functionality", function () {
           tokenHolder,
           commissionReceiver,
           newAuthorizer,
-          intruder,
-          newCommissionReceiver,
-          bridgeOwner,
-
-          renewalCommissionReceiver,
-          renewalBridgeOwner
+          bridgeOwner
         ] = await ethers.getSigners();
         
         const Token = await ethers.getContractFactory("Token");
-        const token = await Token.deploy("SingularityNET Token", "AGIX");
-       
-        await token.mint(tokenHolder.address, 10000);       
+        token = await Token.deploy("SingularityNET Token", "AGIX");
         
+        await token.mint(tokenHolder.address, 1000000000000);  // 10k      
+
         const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
         converter = await TokenConversionСonverter.deploy(
-            await token.getAddress(), 
+            await token.getAddress(), // address of token to convert
             false, // commissionIsEnabled,
-            1, // convertTokenPercentage
-            50, // receiverCommissionProportion
-            50, // bridgeOwnerCommissionProportion
-            10000,
-            0, // commissionType
-            0, //fixedNativeTokenCommission
-            100000000000,  // fixedNativeTokenCommissionLimit
-            0, // fixedTokenCommission
-            await commissionReceiver.getAddress(),
-            await bridgeOwner.getAddress()
+            0,
+            100,
+            100000000, // fixedNativeTokenCommissionLimit
+            commissionReceiver.getAddress(), 
+            bridgeOwner.getAddress()
+        );
+
+        await converter.updateConfigurations(1000000000, 1000000000000000, 10000000000000) //!! min 1 max 1000 maxs 10000
+        await converter.updateAuthorizer(await authorizer.getAddress())
+        await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+    });
+  
+    it("Should handle token conversionOut correctly revert unauthorized operation", async function () {
+    
+        const [ authorizer, intruder ] = await ethers.getSigners();
+
+        await token.mint(intruder.address, 100000000000);  // 1k 
+
+        await token.connect(intruder).approve(await converter.getAddress(), 1);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+        
+        let fakeAmount = 10000000000;
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionOut", fakeAmount, await intruder.getAddress(),
+            "0x" + Buffer.from("Attack").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await intruder.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await expect(
+            converter.connect(intruder).conversionOut(
+                fakeAmount,
+                formatBytes32String("Attack"),
+                v, r, s
+            )
+        ).to.be.revertedWithCustomError(converter, "InvalidRequestOrSignature");
+    }); 
+
+    it("Should handle token conversionIn correctly revert unauthorized operation", async function () {
+
+        const [ authorizer, intruder ] = await ethers.getSigners();
+
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        let fakeAmount = 10000000000;
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", fakeAmount, await intruder.getAddress(),
+            "0x" + Buffer.from("Attack").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await intruder.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await expect(converter.connect(intruder).conversionIn(
+            tokenHolder.getAddress(),
+            fakeAmount,
+            formatBytes32String("Attack"),
+            v, r, s
+        )).to.be.revertedWithCustomError(converter, "InvalidRequestOrSignature");
+    });
+
+    it("Should handle token conversionOut correctly revert violation of tx amount limits", async function () {
+    
+        const [ authorizer, user ] = await ethers.getSigners();
+
+        await token.mint(user.getAddress(), 1000000000000000);  // 1k
+
+        await token.connect(user).approve(await converter.getAddress(), 1000000000000000);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+        
+        let amount = 100000000;
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionOut", amount, await user.getAddress(),
+            "0x" + Buffer.from("ConversioId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await expect(
+            converter.connect(user).conversionOut(
+                amount,
+                formatBytes32String("ConversioId"),
+                v, r, s
+            )
+        ).to.be.revertedWithCustomError(converter, "ViolationOfTxAmountLimits");
+    });
+
+    it("Should handle token conversionIn correctly revert minting more than max supply", async function () {
+
+        const [ authorizer, user ] = await ethers.getSigners();
+
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        let amount = 100000000000000;
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", amount, await user.getAddress(),
+            "0x" + Buffer.from("ConversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await expect(converter.connect(user).conversionIn(
+            user.getAddress(),
+            amount,
+            formatBytes32String("ConversionId"),
+            v, r, s
+        )).to.be.revertedWithCustomError(converter, "MintingMoreThanMaxSupply");
+    });
+
+    it("Should handle token conversionOut correctly revert operations with used signature", async function () {
+
+        const [ authorizer, user ] = await ethers.getSigners();
+        await token.mint(user.getAddress(), 1000000000);  // 1k
+        let amount = 1000000000;
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionOut", amount, await user.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+        
+        await converter.connect(user).conversionOut(
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
         )
+
+        await expect(converter.connect(user).conversionOut(
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        )).to.be.revertedWithCustomError(converter, "UsedSignature");
+
+        await token.connect(user).burn(
+            1000000000
+        )
+    });
+
+    it("Should handle token conversionIn correctly revert operations with used signature", async function () {
+
+        const [ authorizer, user ] = await ethers.getSigners();
+        await token.mint(user.getAddress(), 100000000);  // 1k
+        let amount = 1000000000;
+
+        await token.connect(user).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionIn", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+
+        await converter.connect(tokenHolder).conversionIn(
+            user.getAddress(),
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        );
+
+        await expect(converter.connect(user).conversionIn(
+            user.getAddress(),
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        )).to.be.revertedWithCustomError(converter, "UsedSignature");
+    }); 
+});
+
+describe("TokenConversionManagerV2", function () {
+    let authorizer, tokenHolder, commissionReceiver, newAuthorizer;
+    let token, converter;
+
+    const amount = 10000000000;
+
+    beforeEach(async () => {
+        [
+          authorizer,
+          tokenHolder,
+          commissionReceiver,
+          newAuthorizer,
+          bridgeOwner
+        ] = await ethers.getSigners();
+        
+        const Token = await ethers.getContractFactory("Token");
+        token = await Token.deploy("SingularityNET Token", "AGIX");
+        
+        await token.mint(tokenHolder.address, 1000000000000);  // 10k      
+
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
+        converter = await TokenConversionСonverter.deploy(
+            await token.getAddress(), // address of token to convert
+            false, // commissionIsEnabled,
+            0,
+            100,
+            100000000, // fixedNativeTokenCommissionLimit
+            commissionReceiver.getAddress(), 
+            bridgeOwner.getAddress()
+        );
+
+        await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
+        await converter.updateAuthorizer(await authorizer.getAddress())
+        await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+    });
+  
+    it("Should handle token conversionOut correctly revert while token paused", async function () {
+
+        const [ authorizer ] = await ethers.getSigners();
+        const initBalanceBeforeConversionOut = 1000000000000;
+
+        await token.connect(tokenHolder).approve(await converter.getAddress(), amount);
+        await converter.updateAuthorizer(await authorizer.getAddress())
+
+        await token.pause();
+
+        const messageHash = ethereumjsabi.soliditySHA3(
+            ["string", "uint256", "address", "bytes32", "address"],
+            ["__conversionOut", amount, await tokenHolder.getAddress(),
+            "0x" + Buffer.from("conversionId").toString('hex'),
+            await converter.getAddress()]
+        );
+    
+        const msg = arrayify(messageHash);
+        const signature = await authorizer.signMessage(msg);
+
+        const { v, r, s } = splitSignature(signature);
+        
+        await expect(converter.connect(tokenHolder).conversionOut(
+            amount,
+            formatBytes32String("conversionId"),
+            v, r, s
+        )).to.be.revertedWithCustomError(converter, "ConversionFailed");
+    }); 
+});
+
+describe("TokenConversionManagerV2 - Administrative functionality", function () {
+
+    beforeEach(async () => {
+        [
+          authorizer,
+          tokenHolder,
+          commissionReceiver,
+          newAuthorizer,
+          bridgeOwner,
+          intruder
+        ] = await ethers.getSigners();
+        
+        const Token = await ethers.getContractFactory("Token");
+        token = await Token.deploy("SingularityNET Token", "AGIX");
+        
+        await token.mint(tokenHolder.address, 1000000000000);  // 10k      
+
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
+        converter = await TokenConversionСonverter.deploy(
+            await token.getAddress(), // address of token to convert
+            false, // commissionIsEnabled,
+            0,
+            100,
+            100000000, // fixedNativeTokenCommissionLimit
+            commissionReceiver.getAddress(), 
+            bridgeOwner.getAddress()
+        );
+
+        await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
+        await converter.updateAuthorizer(await authorizer.getAddress())
+        await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
     });
 
     it("Administrative Operation - Update Conversion Authorizer", async function () {
@@ -539,6 +1005,9 @@ describe("Administrative functionality", function () {
     });
 
     it("Administrative Operation - Update Conversion Configuration", async function () {
+
+        let [ newOwnerContract ] = await ethers.getSigners();
+
         let minimum = 100;
         let maximum = 500;
         let maxSupply = 1000;
@@ -548,6 +1017,16 @@ describe("Administrative functionality", function () {
         expect(updatedConfigurations[1]).to.equal(BigInt(maximum));
         expect(updatedConfigurations[2]).to.equal(BigInt(maxSupply));
 
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+        let badMinimum = 500;
+        let badMaximum = 100;
+        let badMaxSupply = 0;
+
+        await expect(
+            converter.connect(newOwnerContract).updateConfigurations(badMinimum, badMaximum, badMaxSupply)
+        ).to.be.revertedWithCustomError(converter, "InvalidUpdateConfigurations");
+
         await expect(
             converter.connect(intruder).updateConfigurations(
                 minimum, maximum, maxSupply
@@ -555,96 +1034,265 @@ describe("Administrative functionality", function () {
         ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
-    it("Administrative Operation - Setup Commission Configurations", async function () {
+    it("Administrative Operation - Update commission split proportions", async function () {
+        let newCommissionReceiverProportion = 10;
+        let newBridgeOwnerProportion = 90;
 
-        let newCommissionIsEnabled = true;
-        let newReceiverCommissionProportion = 30;
-        let newBridgeOwnerCommissionProportion = 70;
-        let newOffset = 0;
-        let newConvertTokenPercentage = 0;
-        let newCommissionType = 2;
-        let newFixedTokenCommission = 0;
-        let newFixedNativeTokenCommission = 1;
-        let newReceiverCommission = await commissionReceiver.getAddress();
-        let newBridgeOwner = await bridgeOwner.getAddress();
-
-        await converter.updateCommissionConfiguration(
-            newCommissionIsEnabled,
-            newReceiverCommissionProportion,
-            newBridgeOwnerCommissionProportion,
-            newConvertTokenPercentage,
-            newOffset,
-            newCommissionType,
-            newFixedTokenCommission,
-            newFixedNativeTokenCommission,
-            newReceiverCommission,
-            newBridgeOwner
-        );
-
-        let updatedCommissionConfigurations = await converter.getCommissionSettings();
-
-        expect(updatedCommissionConfigurations[0]).to.equal(newCommissionIsEnabled);
-        expect(updatedCommissionConfigurations[1]).to.equal(BigInt(newReceiverCommissionProportion));
-        expect(updatedCommissionConfigurations[2]).to.equal(BigInt(newBridgeOwnerCommissionProportion));
-        expect(updatedCommissionConfigurations[3]).to.equal(BigInt(newConvertTokenPercentage));
-        expect(updatedCommissionConfigurations[4]).to.equal(BigInt(newOffset));
-        expect(updatedCommissionConfigurations[5]).to.equal(BigInt(newCommissionType));
-
-        expect(updatedCommissionConfigurations[6]).to.equal(BigInt(newFixedTokenCommission));
-        expect(updatedCommissionConfigurations[7]).to.equal(BigInt(newFixedNativeTokenCommission));
-        expect(updatedCommissionConfigurations[8]).to.equal(newReceiverCommission);
-        expect(updatedCommissionConfigurations[9]).to.equal(newBridgeOwner);
-        
-        await expect(
-            converter.connect(intruder).updateCommissionConfiguration(
-                newCommissionIsEnabled,
-                0,
-                100,
-                newConvertTokenPercentage,
-                newOffset,
-                newCommissionType,
-                newFixedTokenCommission,
-                newFixedNativeTokenCommission,
-                newReceiverCommission,
-                await intruder.getAddress()
-            )
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
-    it("Administrative Operation - Change Commission Receiver", async function () {
-        let newReceiver = await renewalCommissionReceiver.getAddress()
-        
+        let [ newOwnerContract ] = await ethers.getSigners();
         // update receiver
-        await converter.updateReceiverCommission(
-            newReceiver
+        await converter.updateCommissionProportions(
+            newCommissionReceiverProportion,
+            newBridgeOwnerProportion
         );
 
-        let updatedReceivers = await converter.getCommissionReceiverAddresses();
-
-        expect(updatedReceivers[0]).to.equal(newReceiver);
-
-        await expect(
-            converter.connect(intruder).updateReceiverCommission(
-                await intruder.getAddress()
-            )
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-    });
-
-    it("Administrative Operation - Change Bridge Owner Commission Receiver", async function () {
-        let newBridgeOwner = await renewalBridgeOwner.getAddress()
-        
-        // update receiver
-        await converter.updateBridgeOwner(
-            newBridgeOwner
-        );
-
-        let updatedReceivers = await converter.getCommissionReceiverAddresses();
-        expect(updatedReceivers[1]).to.equal(newBridgeOwner);
+        let updatedReceivers = await converter.getCommissionSettings();
+        expect(updatedReceivers[1]).to.equal(newCommissionReceiverProportion);
+        expect(updatedReceivers[2]).to.equal(newBridgeOwnerProportion);
 
         await expect(
             converter.connect(intruder).updateBridgeOwner(
                 await intruder.getAddress()
             )
         ).to.be.revertedWith("Ownable: caller is not the owner");
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+        await expect(
+            converter.connect(newOwnerContract).updateCommissionProportions(
+                100,
+                100
+            )
+        ).to.be.revertedWithCustomError(converter, "InvalidProportionSum");
+    });
+
+    it("Administrative Operation - Update Сommission Receiver", async function () {
+
+        let [ receiverForUpdate, newOwnerContract ] = await ethers.getSigners();
+
+        await converter.updateReceiverCommission(await receiverForUpdate.getAddress());
+
+        let receiversData = await converter.getCommissionReceiverAddresses();
+        expect(receiversData[0]).to.equal(await receiverForUpdate.getAddress());
+
+        await expect(
+            converter.connect(intruder).updateReceiverCommission(
+                await intruder.getAddress()
+            )
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+        await converter.connect(newOwnerContract).updateReceiverCommission(
+                "0x0000000000000000000000000000000000000000"
+        )
+    });
+
+    it("Administrative Operation - Update Bridge Owner Сommission Receiver", async function () {
+
+        let [ newBridgeOwnerReceiver, newOwnerContract ] = await ethers.getSigners();
+
+        await converter.updateBridgeOwner(await newBridgeOwnerReceiver.getAddress());
+
+        let receiversData = await converter.getCommissionReceiverAddresses();
+        expect(receiversData[1]).to.equal(await newBridgeOwnerReceiver.getAddress());
+
+        await expect(
+            converter.connect(intruder).updateBridgeOwner(
+                await intruder.getAddress()
+            )
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+        
+        await expect(
+            converter.connect(newOwnerContract).updateBridgeOwner(
+                "0x0000000000000000000000000000000000000000"
+            )
+        ).to.be.revertedWithCustomError(converter, "ZeroAddress");
+    });
+});
+
+describe("Commission Module - Administrative functionality", function () {
+
+    beforeEach(async () => {
+        [
+          authorizer,
+          tokenHolder,
+          commissionReceiver,
+          newAuthorizer,
+          bridgeOwner,
+          intruder
+        ] = await ethers.getSigners();
+        
+        const Token = await ethers.getContractFactory("Token");
+        token = await Token.deploy("SingularityNET Token", "AGIX");
+        
+        await token.mint(tokenHolder.address, 1000000000000);  // 10k      
+
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
+        converter = await TokenConversionСonverter.deploy(
+            await token.getAddress(), // address of token to convert
+            false, // commissionIsEnabled,
+            0,
+            100,
+            100000000, // fixedNativeTokenCommissionLimit
+            commissionReceiver.getAddress(), 
+            bridgeOwner.getAddress()
+        );
+
+        await converter.updateConfigurations(100000000, 100000000000, 1000000000000000) //!! min 1 max 1000 maxs 10000
+        await converter.updateAuthorizer(await authorizer.getAddress())
+        await token.grantRole("0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6", converter.getAddress())
+    });
+
+    it("Administrative Operation - Update commission split proportions", async function () {
+        let newCommissionReceiverProportion = 10;
+        let newBridgeOwnerProportion = 90;
+
+        let [ newOwnerContract ] = await ethers.getSigners();
+        // update receiver
+        await converter.updateCommissionProportions(
+            newCommissionReceiverProportion,
+            newBridgeOwnerProportion
+        );
+
+        let updatedReceivers = await converter.getCommissionSettings();
+        expect(updatedReceivers[1]).to.equal(newCommissionReceiverProportion);
+        expect(updatedReceivers[2]).to.equal(newBridgeOwnerProportion);
+
+        await expect(
+            converter.connect(intruder).updateBridgeOwner(
+                await intruder.getAddress()
+            )
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+        await expect(
+            converter.connect(newOwnerContract).updateCommissionProportions(
+                100,
+                100
+            )
+        ).to.be.revertedWithCustomError(converter, "InvalidProportionSum");
+    });
+
+    it("Administrative Operation - Update Сommission Receiver", async function () {
+
+        let [ receiverForUpdate, newOwnerContract ] = await ethers.getSigners();
+
+        await converter.updateReceiverCommission(await receiverForUpdate.getAddress());
+
+        let receiversData = await converter.getCommissionReceiverAddresses();
+        expect(receiversData[0]).to.equal(await receiverForUpdate.getAddress());
+
+        await expect(
+            converter.connect(intruder).updateReceiverCommission(
+                await intruder.getAddress()
+            )
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+        await converter.connect(newOwnerContract).updateReceiverCommission(
+                "0x0000000000000000000000000000000000000000"
+        )
+    });
+
+    it("Administrative Operation - Update Bridge Owner Сommission Receiver", async function () {
+
+        let [ newBridgeOwnerReceiver, newOwnerContract ] = await ethers.getSigners();
+
+        await converter.updateBridgeOwner(await newBridgeOwnerReceiver.getAddress());
+
+        let receiversData = await converter.getCommissionReceiverAddresses();
+        expect(receiversData[1]).to.equal(await newBridgeOwnerReceiver.getAddress());
+
+        await expect(
+            converter.connect(intruder).updateBridgeOwner(
+                await intruder.getAddress()
+            )
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+        
+        await expect(
+            converter.connect(newOwnerContract).updateBridgeOwner(
+                "0x0000000000000000000000000000000000000000"
+            )
+        ).to.be.revertedWithCustomError(converter, "ZeroAddress");
+    });
+
+
+    it("Administrative Operation - Should revert incorrect fixed native tokens limit", async function () {
+
+        let [ newBridgeOwnerReceiver, newOwnerContract, intruder ] = await ethers.getSigners();
+
+        await converter.updateBridgeOwner(await newBridgeOwnerReceiver.getAddress());
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+        
+        await expect(
+            converter.connect(newOwnerContract).enableAndUpdateFixedNativeTokensCommission(
+                "1000000000000000"
+            )
+        ).to.be.revertedWithCustomError(converter, "ViolationOfFixedNativeTokensLimit");
+
+        await expect(
+            converter.connect(intruder).enableAndUpdateFixedNativeTokensCommission(
+                1
+            )
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("Administrative Operation - Should correct disable commission", async function () {
+
+        let [ intruder ] = await ethers.getSigners();
+
+        await converter.disableCommission();
+    });
+
+    it("Administrative Operation - Should revert incorrect fixed tokens commission setup", async function () {
+
+        let [ newOwnerContract ] = await ethers.getSigners();
+
+        await converter.transferOwnership(await newOwnerContract.getAddress());
+
+        await converter.connect(newOwnerContract).enableAndUpdateFixedNativeTokensCommission(1)
+        
+        await expect(
+            converter.connect(newOwnerContract).enableAndUpdatePercentageTokensCommission(
+                0,100
+            )
+        ).to.be.revertedWithCustomError(converter, "EnablingZeroTokenPercentageCommission");
+
+        await expect(
+            converter.connect(newOwnerContract).enableAndUpdatePercentageTokensCommission(
+                100,0
+            )
+        ).to.be.revertedWithCustomError(converter, "EnablingZeroTokenPercentageCommission");
+
+        // correct enable commission
+        converter.connect(newOwnerContract).enableAndUpdatePercentageTokensCommission(
+            10,10000
+        )
+    });
+
+    it("Administrative Operation - Should revert incorrect fixed native limit commission setup at contract deploy", async function () {
+
+        const Token = await ethers.getContractFactory("Token");
+        token = await Token.deploy("SingularityNET Token", "AGIX");
+        
+        await token.mint(tokenHolder.address, 1000000000000);  // 10k      
+
+        const TokenConversionСonverter = await ethers.getContractFactory("TokenConversionManagerV2");
+        await expect(TokenConversionСonverter.deploy(
+            await token.getAddress(), // address of token to convert
+            false, // commissionIsEnabled,
+            0,
+            100,
+            0, // fixedNativeTokenCommissionLimit
+            commissionReceiver.getAddress(), 
+            bridgeOwner.getAddress()
+        )).to.be.revertedWithCustomError(TokenConversionСonverter, "ZeroFixedNativeTokensCommissionLimit");
     });
 });

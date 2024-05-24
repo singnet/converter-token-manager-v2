@@ -4,6 +4,21 @@
   "sourceName": "contracts/Commission.sol",
   "abi": [
     {
+      "inputs": [],
+      "name": "EnablingZeroFixedNativeTokenCommission",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EnablingZeroFixedTokenCommission",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EnablingZeroTokenPercentageCommission",
+      "type": "error"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint8",
@@ -47,12 +62,17 @@
     },
     {
       "inputs": [],
-      "name": "ViolationOfNativeTokenLimit",
+      "name": "ViolationOfFixedNativeTokensLimit",
       "type": "error"
     },
     {
       "inputs": [],
       "name": "ZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroFixedNativeTokensCommissionLimit",
       "type": "error"
     },
     {
@@ -65,7 +85,7 @@
           "type": "uint256"
         }
       ],
-      "name": "NativeCurrencyCommissionClaim",
+      "name": "FixedNativeTokensCommissionClaim",
       "type": "event"
     },
     {
@@ -92,18 +112,6 @@
       "inputs": [
         {
           "indexed": false,
-          "internalType": "bool",
-          "name": "commissionIsEnabled",
-          "type": "bool"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint8",
-          "name": "convertTokenPercentage",
-          "type": "uint8"
-        },
-        {
-          "indexed": false,
           "internalType": "uint8",
           "name": "receiverCommissionProportion",
           "type": "uint8"
@@ -116,14 +124,65 @@
         },
         {
           "indexed": false,
-          "internalType": "uint16",
-          "name": "pointOffsetShifter",
-          "type": "uint16"
+          "internalType": "uint256",
+          "name": "updateTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "UpdateCommissionProportions",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bool",
+          "name": "commissionIsEnabled",
+          "type": "bool"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "commissionType",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "UpdateCommissionType",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
         },
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "commissionType",
+          "name": "fixedNativeTokensCommission",
+          "type": "uint256"
+        }
+      ],
+      "name": "UpdateFixedNativeTokensCommission",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "timestamp",
           "type": "uint256"
         },
         {
@@ -131,33 +190,34 @@
           "internalType": "uint256",
           "name": "fixedTokenCommission",
           "type": "uint256"
-        },
+        }
+      ],
+      "name": "UpdateFixedTokensCommission",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "uint256",
-          "name": "fixedNativeTokenCommission",
+          "name": "timestamp",
           "type": "uint256"
         },
         {
           "indexed": false,
-          "internalType": "address payable",
-          "name": "receiverCommission",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "address payable",
-          "name": "bridgeOwner",
-          "type": "address"
+          "internalType": "uint256",
+          "name": "convertTokenPercentage",
+          "type": "uint256"
         },
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "updateTimestamp",
+          "name": "pointOffsetShifter",
           "type": "uint256"
         }
       ],
-      "name": "UpdateCommissionConfiguration",
+      "name": "UpdatePercentageTokensCommission",
       "type": "event"
     },
     {
@@ -181,7 +241,7 @@
     },
     {
       "inputs": [],
-      "name": "claimNativeCurrencyCommission",
+      "name": "claimFixedNativeTokensCommission",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -217,7 +277,7 @@
         },
         {
           "internalType": "uint256",
-          "name": "fixedNativeTokenCommission",
+          "name": "fixedNativeTokensCommission",
           "type": "uint256"
         },
         {
@@ -247,6 +307,50 @@
     {
       "inputs": [],
       "name": "disableCommission",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "newFixedNativeTokensCommission",
+          "type": "uint256"
+        }
+      ],
+      "name": "enableAndUpdateFixedNativeTokensCommission",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "newFixedTokenCommission",
+          "type": "uint256"
+        }
+      ],
+      "name": "enableAndUpdateFixedTokensCommission",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint8",
+          "name": "newConvertTokenPercentage",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint16",
+          "name": "newPointOffsetShifter",
+          "type": "uint16"
+        }
+      ],
+      "name": "enableAndUpdatePercentageTokensCommission",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -310,7 +414,7 @@
         },
         {
           "internalType": "uint256",
-          "name": "fixedNativeTokenCommission",
+          "name": "fixedNativeTokensCommission",
           "type": "uint256"
         },
         {
@@ -381,57 +485,17 @@
     {
       "inputs": [
         {
-          "internalType": "bool",
-          "name": "commissionIsEnabled",
-          "type": "bool"
-        },
-        {
           "internalType": "uint8",
-          "name": "receiverCommissionProportion",
+          "name": "newReceiverCommissionProportion",
           "type": "uint8"
         },
         {
           "internalType": "uint8",
-          "name": "bridgeOwnerCommissionProportion",
+          "name": "newBridgeOwnerCommissionProportion",
           "type": "uint8"
-        },
-        {
-          "internalType": "uint8",
-          "name": "newConvertTokenPercentage",
-          "type": "uint8"
-        },
-        {
-          "internalType": "uint16",
-          "name": "newPointOffsetShifter",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint256",
-          "name": "newCommissionType",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "newFixedTokenCommission",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "newFixedNativeTokenCommission",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address payable",
-          "name": "receiverCommission",
-          "type": "address"
-        },
-        {
-          "internalType": "address payable",
-          "name": "bridgeOwner",
-          "type": "address"
         }
       ],
-      "name": "updateCommissionConfiguration",
+      "name": "updateCommissionProportions",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
