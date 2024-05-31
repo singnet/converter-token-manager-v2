@@ -127,15 +127,17 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             emit UpdateCommissionType(true, 0, timestamp);
         }
 
-        updateCommissionProportions(receiverCommissionProportion, bridgeOwnerCommissionProportion);
-
-        commissionSettings.bridgeOwner = payable(bridgeOwner);
-        emit UpdateReceiver(address(0), bridgeOwner);
-
         if (receiverCommission != address(0)) {
             commissionSettings.receiverCommission = payable(receiverCommission);
             emit UpdateReceiver(address(0), receiverCommission);
+            
+            updateCommissionProportions(receiverCommissionProportion, bridgeOwnerCommissionProportion);
+        } else {
+            updateCommissionProportions(0, 100);
         }
+
+        commissionSettings.bridgeOwner = payable(bridgeOwner);
+        emit UpdateReceiver(address(0), bridgeOwner);
 
         emit UpdateCommissionProportions(
             receiverCommissionProportion, 
@@ -258,6 +260,8 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      * @param newReceiverCommission - new bridge commission receiver address
      */
     function updateReceiverCommission(address newReceiverCommission) external onlyOwner { 
+        if(newReceiverCommission == address(0))
+            updateCommissionProportions(0, 100);
         emit UpdateReceiver(commissionSettings.receiverCommission, newReceiverCommission);
 
         commissionSettings.receiverCommission = payable(newReceiverCommission);
@@ -293,7 +297,6 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             revert NotEnoughBalance();
 
         if (
-            commissionSettings.receiverCommission != address(0) && 
             commissionSettings.receiverCommissionProportion != 0
         ) {
             (bool sendToReceiver, ) = 
@@ -420,7 +423,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
             _calculateCommissionInToken(amount);
 
-        if (commissionSettings.receiverCommission != address(0) && commissionSum != commissionAmountBridgeOwner) {
+        if (commissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
             (bool transferToReceiver, ) = TOKEN.call(
                 abi.encodeWithSelector(
                     TRANSFERFROM_SELECTOR,
@@ -457,7 +460,7 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
             _calculateCommissionInToken(amount);
 
-        if (commissionSettings.receiverCommission != address(0) && commissionSum != commissionAmountBridgeOwner) {
+        if (commissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
             (bool transferToReceiver, ) = TOKEN.call(
                 abi.encodeWithSelector(
                     TRANSFER_SELECTOR,
