@@ -292,12 +292,13 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
         nonReentrant
         isCommissionReceiver(_msgSender())
     {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
         uint256 contractBalance = address(this).balance;
         if (contractBalance == 0 )
             revert NotEnoughBalance();
 
         if (
-            commissionSettings.receiverCommissionProportion != 0
+            cachedCommissionSettings.receiverCommissionProportion != 0
         ) {
             (bool sendToReceiver, ) = 
                 commissionSettings.receiverCommission
@@ -384,13 +385,14 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
             newBridgeOwnerCommissionProportion
         ) 
     {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
         // receiverCommissionProportion can be null
-        if (commissionSettings.receiverCommissionProportion != newReceiverCommissionProportion)
+        if (cachedCommissionSettings.receiverCommissionProportion != newReceiverCommissionProportion)
             commissionSettings.receiverCommissionProportion = newReceiverCommissionProportion; 
 
         if (
             newBridgeOwnerCommissionProportion != 0 && 
-            commissionSettings.bridgeOwnerCommissionProportion != newBridgeOwnerCommissionProportion
+            cachedCommissionSettings.bridgeOwnerCommissionProportion != newBridgeOwnerCommissionProportion
         )  
             commissionSettings.bridgeOwnerCommissionProportion = newBridgeOwnerCommissionProportion; 
 
@@ -406,7 +408,9 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
      * @notice Method to check when charging a fee in native token
      */
     function _checkPayedCommissionInNative() internal {
-        if (msg.value != commissionSettings.fixedNativeTokensCommission) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
+        if (msg.value != cachedCommissionSettings.fixedNativeTokensCommission) {
             revert TakeFixedNativeTokensCommissionFailed(
                 msg.value,
                 commissionSettings.fixedNativeTokensCommission
@@ -420,15 +424,17 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
      * @return charged commission amount
      */
     function _takeCommissionInTokenOutput(uint256 amount) internal returns (uint256) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
             _calculateCommissionInToken(amount);
 
-        if (commissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
+        if (cachedCommissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
             (bool transferToReceiver, ) = TOKEN.call(
                 abi.encodeWithSelector(
                     TRANSFERFROM_SELECTOR,
                     _msgSender(),
-                    commissionSettings.receiverCommission,
+                    cachedCommissionSettings.receiverCommission,
                     commissionSum - commissionAmountBridgeOwner
                 )
             );
@@ -457,14 +463,16 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
      * @return charged commission amount
      */
     function _takeCommissionInTokenInput(uint256 amount) internal returns (uint256) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
             _calculateCommissionInToken(amount);
 
-        if (commissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
+        if (cachedCommissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
             (bool transferToReceiver, ) = TOKEN.call(
                 abi.encodeWithSelector(
                     TRANSFER_SELECTOR,
-                    commissionSettings.receiverCommission,
+                    cachedCommissionSettings.receiverCommission,
                     commissionSum - commissionAmountBridgeOwner
                 )
             );
@@ -493,6 +501,8 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
      * @return commission amount for bridge owner and the whole sum of commission
      */
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256, uint256) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
         if (commissionSettings.commissionType == CommissionType.PercentageTokens) {
             uint256 commissionSum = amount* uint256(commissionSettings.convertTokenPercentage) / commissionSettings.pointOffsetShifter;
             return (
@@ -504,7 +514,7 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
             _calculateCommissionBridgeOwnerProportion(
                 commissionSettings.fixedTokenCommission
             ), 
-            commissionSettings.fixedTokenCommission
+            cachedCommissionSettings.fixedTokenCommission
         );
     }
 
