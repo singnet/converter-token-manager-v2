@@ -17,7 +17,7 @@ contract TokenConversionManagerV2 is Commission {
     address private _conversionAuthorizer; // Authorizer Address for the conversion
 
     bytes4 private constant MINT_SELECTOR = 0x40c10f19;
-    bytes4 private constant BURN_SELECTOR = 0x9dc29fac;
+    bytes4 private constant BURN_SELECTOR = 0x79cc6790;
 
     //already used conversion signature from authorizer in order to prevent replay attack
     mapping (bytes32 => bool) private _usedSignatures; 
