@@ -499,14 +499,13 @@ abstract contract Commission is Ownable, ReentrancyGuard {
                 _calculateCommissionBridgeOwnerProportion(commissionSum), 
                 commissionSum
             );
-        } else {
-            return (
-                _calculateCommissionBridgeOwnerProportion(
-                    commissionSettings.fixedTokenCommission
-                ), 
-                commissionSettings.fixedTokenCommission
-            );
         }
+        return (
+            _calculateCommissionBridgeOwnerProportion(
+                commissionSettings.fixedTokenCommission
+            ), 
+            commissionSettings.fixedTokenCommission
+        );
     }
 
     /**
