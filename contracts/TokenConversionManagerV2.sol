@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import "./Commission.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -16,8 +16,8 @@ error MintingMoreThanMaxSupply();
 contract TokenConversionManagerV2 is Commission {
     address private _conversionAuthorizer; // Authorizer Address for the conversion
 
-    bytes4 private constant MINT_SELECTOR = bytes4(keccak256("mint(address,uint256)"));
-    bytes4 private constant BURN_SELECTOR = bytes4(keccak256("burnFrom(address,uint256)"));
+    bytes4 private constant MINT_SELECTOR = 0x40c10f19;
+    bytes4 private constant BURN_SELECTOR = 0x79cc6790;
 
     //already used conversion signature from authorizer in order to prevent replay attack
     mapping (bytes32 => bool) private _usedSignatures; 

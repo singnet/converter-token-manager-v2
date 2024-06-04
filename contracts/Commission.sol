@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Errors
@@ -22,7 +22,7 @@ error EnablingZeroTokenPercentageCommission();
 
 /// @title Commission module for bridge contract
 /// @author SingularityNET
-abstract contract Commission is Ownable, ReentrancyGuard {
+abstract contract Commission is Ownable2Step, ReentrancyGuard {
     // Address of token contract for  
     address internal immutable TOKEN;
 
@@ -49,8 +49,8 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         address payable bridgeOwner; // can't be zero address
     } 
 
-    bytes4 private constant TRANSFERFROM_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
-    bytes4 internal constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
+    bytes4 private constant TRANSFERFROM_SELECTOR = 0x23b872dd;
+    bytes4 internal constant TRANSFER_SELECTOR = 0xa9059cbb;
 
     // Events
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
@@ -292,12 +292,13 @@ abstract contract Commission is Ownable, ReentrancyGuard {
         nonReentrant
         isCommissionReceiver(_msgSender())
     {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
         uint256 contractBalance = address(this).balance;
         if (contractBalance == 0 )
             revert NotEnoughBalance();
 
         if (
-            commissionSettings.receiverCommissionProportion != 0
+            cachedCommissionSettings.receiverCommissionProportion != 0
         ) {
             (bool sendToReceiver, ) = 
                 commissionSettings.receiverCommission
@@ -384,13 +385,14 @@ abstract contract Commission is Ownable, ReentrancyGuard {
             newBridgeOwnerCommissionProportion
         ) 
     {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
         // receiverCommissionProportion can be null
-        if (commissionSettings.receiverCommissionProportion != newReceiverCommissionProportion)
+        if (cachedCommissionSettings.receiverCommissionProportion != newReceiverCommissionProportion)
             commissionSettings.receiverCommissionProportion = newReceiverCommissionProportion; 
 
         if (
             newBridgeOwnerCommissionProportion != 0 && 
-            commissionSettings.bridgeOwnerCommissionProportion != newBridgeOwnerCommissionProportion
+            cachedCommissionSettings.bridgeOwnerCommissionProportion != newBridgeOwnerCommissionProportion
         )  
             commissionSettings.bridgeOwnerCommissionProportion = newBridgeOwnerCommissionProportion; 
 
@@ -406,7 +408,9 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      * @notice Method to check when charging a fee in native token
      */
     function _checkPayedCommissionInNative() internal {
-        if (msg.value != commissionSettings.fixedNativeTokensCommission) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
+        if (msg.value != cachedCommissionSettings.fixedNativeTokensCommission) {
             revert TakeFixedNativeTokensCommissionFailed(
                 msg.value,
                 commissionSettings.fixedNativeTokensCommission
@@ -420,15 +424,17 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      * @return charged commission amount
      */
     function _takeCommissionInTokenOutput(uint256 amount) internal returns (uint256) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
             _calculateCommissionInToken(amount);
 
-        if (commissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
+        if (cachedCommissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
             (bool transferToReceiver, ) = TOKEN.call(
                 abi.encodeWithSelector(
                     TRANSFERFROM_SELECTOR,
                     _msgSender(),
-                    commissionSettings.receiverCommission,
+                    cachedCommissionSettings.receiverCommission,
                     commissionSum - commissionAmountBridgeOwner
                 )
             );
@@ -457,14 +463,16 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      * @return charged commission amount
      */
     function _takeCommissionInTokenInput(uint256 amount) internal returns (uint256) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
         (uint256 commissionAmountBridgeOwner, uint256 commissionSum) =
             _calculateCommissionInToken(amount);
 
-        if (commissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
+        if (cachedCommissionSettings.receiverCommissionProportion != 0 && commissionSum != commissionAmountBridgeOwner) {
             (bool transferToReceiver, ) = TOKEN.call(
                 abi.encodeWithSelector(
                     TRANSFER_SELECTOR,
-                    commissionSettings.receiverCommission,
+                    cachedCommissionSettings.receiverCommission,
                     commissionSum - commissionAmountBridgeOwner
                 )
             );
@@ -493,20 +501,21 @@ abstract contract Commission is Ownable, ReentrancyGuard {
      * @return commission amount for bridge owner and the whole sum of commission
      */
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256, uint256) {
+        CommissionSettings memory cachedCommissionSettings = commissionSettings;
+
         if (commissionSettings.commissionType == CommissionType.PercentageTokens) {
             uint256 commissionSum = amount* uint256(commissionSettings.convertTokenPercentage) / commissionSettings.pointOffsetShifter;
             return (
                 _calculateCommissionBridgeOwnerProportion(commissionSum), 
                 commissionSum
             );
-        } else {
-            return (
-                _calculateCommissionBridgeOwnerProportion(
-                    commissionSettings.fixedTokenCommission
-                ), 
-                commissionSettings.fixedTokenCommission
-            );
         }
+        return (
+            _calculateCommissionBridgeOwnerProportion(
+                commissionSettings.fixedTokenCommission
+            ), 
+            cachedCommissionSettings.fixedTokenCommission
+        );
     }
 
     /**
