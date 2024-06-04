@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Errors
@@ -22,7 +22,7 @@ error EnablingZeroTokenPercentageCommission();
 
 /// @title Commission module for bridge contract
 /// @author SingularityNET
-abstract contract Commission is Ownable, ReentrancyGuard {
+abstract contract Commission is Ownable2Step, ReentrancyGuard {
     // Address of token contract for  
     address internal immutable TOKEN;
 

@@ -186,6 +186,7 @@ describe("TokenConversionManagerV2 with percentage tokens commission", function 
         let [ newOwnerContract ] = await ethers.getSigners();
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
         let badConvertTokenPercentage = 100;
         let badOffsetPoints = 10;
@@ -600,6 +601,7 @@ describe("TokenConversionManagerV2 with commission in native currency reverts", 
         let [ newOwnerContract ] = await ethers.getSigners();
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
 
         await expect(
@@ -1018,6 +1020,7 @@ describe("TokenConversionManagerV2 - Administrative functionality", function () 
         expect(updatedConfigurations[2]).to.equal(BigInt(maxSupply));
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
         let badMinimum = 500;
         let badMaximum = 100;
@@ -1056,6 +1059,7 @@ describe("TokenConversionManagerV2 - Administrative functionality", function () 
         ).to.be.revertedWith("Ownable: caller is not the owner");
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
         await expect(
             converter.connect(newOwnerContract).updateCommissionProportions(
@@ -1081,6 +1085,7 @@ describe("TokenConversionManagerV2 - Administrative functionality", function () 
         ).to.be.revertedWith("Ownable: caller is not the owner");
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
         await converter.connect(newOwnerContract).updateReceiverCommission(
                 "0x0000000000000000000000000000000000000000"
@@ -1103,6 +1108,7 @@ describe("TokenConversionManagerV2 - Administrative functionality", function () 
         ).to.be.revertedWith("Ownable: caller is not the owner");
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
         
         await expect(
             converter.connect(newOwnerContract).updateBridgeOwner(
@@ -1167,6 +1173,7 @@ describe("Commission Module - Administrative functionality", function () {
         ).to.be.revertedWith("Ownable: caller is not the owner");
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
         await expect(
             converter.connect(newOwnerContract).updateCommissionProportions(
@@ -1192,6 +1199,7 @@ describe("Commission Module - Administrative functionality", function () {
         ).to.be.revertedWith("Ownable: caller is not the owner");
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
         await converter.connect(newOwnerContract).updateReceiverCommission(
                 "0x0000000000000000000000000000000000000000"
@@ -1214,6 +1222,7 @@ describe("Commission Module - Administrative functionality", function () {
         ).to.be.revertedWith("Ownable: caller is not the owner");
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
         
         await expect(
             converter.connect(newOwnerContract).updateBridgeOwner(
@@ -1230,6 +1239,7 @@ describe("Commission Module - Administrative functionality", function () {
         await converter.updateBridgeOwner(await newBridgeOwnerReceiver.getAddress());
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
         
         await expect(
             converter.connect(newOwnerContract).enableAndUpdateFixedNativeTokensCommission(
@@ -1256,6 +1266,7 @@ describe("Commission Module - Administrative functionality", function () {
         let [ newOwnerContract ] = await ethers.getSigners();
 
         await converter.transferOwnership(await newOwnerContract.getAddress());
+        await converter.connect(newOwnerContract).acceptOwnership();
 
         await converter.connect(newOwnerContract).enableAndUpdateFixedNativeTokensCommission(1)
         
