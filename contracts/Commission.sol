@@ -49,8 +49,8 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
         address payable bridgeOwner; // can't be zero address
     } 
 
-    bytes4 private constant TRANSFERFROM_SELECTOR = bytes4(keccak256("transferFrom(address,address,uint256)"));
-    bytes4 internal constant TRANSFER_SELECTOR = bytes4(keccak256("transfer(address,uint256)"));
+    bytes4 private constant TRANSFERFROM_SELECTOR = 0x23b872dd;
+    bytes4 internal constant TRANSFER_SELECTOR = 0xa9059cbb;
 
     // Events
     event UpdateReceiver(address indexed previousReceiver, address indexed newReceiver);
