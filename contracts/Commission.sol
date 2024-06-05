@@ -48,8 +48,17 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
         address payable receiverCommission;
         address payable bridgeOwner; // can't be zero address
     } 
-
+    
+    /**
+     * @dev Selector for the `transferFrom(address,address,uint256)` function
+     * calculated as bytes4(keccak256("transferFrom(address,address,uint256)"))
+     */
     bytes4 private constant TRANSFERFROM_SELECTOR = 0x23b872dd;
+
+    /**
+     * @dev Selector for the `transfer(address,uint256)` function
+     * calculated as bytes4(keccak256("transfer(address,uint256)"))
+     */
     bytes4 internal constant TRANSFER_SELECTOR = 0xa9059cbb;
 
     // Events
@@ -301,10 +310,10 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
             cachedCommissionSettings.receiverCommissionProportion != 0
         ) {
             (bool sendToReceiver, ) = 
-                commissionSettings.receiverCommission
+                cachedCommissionSettings.receiverCommission
                     .call{ 
                         value: 
-                            contractBalance * commissionSettings.receiverCommissionProportion 
+                            contractBalance * cachedCommissionSettings.receiverCommissionProportion 
                                 / ONE_HUNDRED 
                     }("");
         
@@ -317,7 +326,7 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
             commissionSettings.bridgeOwner
                 .call{
                     value: 
-                        contractBalance * commissionSettings.bridgeOwnerCommissionProportion 
+                        contractBalance * cachedCommissionSettings.bridgeOwnerCommissionProportion 
                             / ONE_HUNDRED
                 }("");
 
@@ -397,8 +406,8 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
             commissionSettings.bridgeOwnerCommissionProportion = newBridgeOwnerCommissionProportion; 
 
         emit UpdateCommissionProportions(
-            commissionSettings.receiverCommissionProportion, 
-            commissionSettings.bridgeOwnerCommissionProportion,
+            cachedCommissionSettings.receiverCommissionProportion, 
+            cachedCommissionSettings.bridgeOwnerCommissionProportion,
             block.timestamp
         );
     }
@@ -413,7 +422,7 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
         if (msg.value != cachedCommissionSettings.fixedNativeTokensCommission) {
             revert TakeFixedNativeTokensCommissionFailed(
                 msg.value,
-                commissionSettings.fixedNativeTokensCommission
+                cachedCommissionSettings.fixedNativeTokensCommission
             );
         }
     }
@@ -446,7 +455,7 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
             abi.encodeWithSelector(
                 TRANSFERFROM_SELECTOR,
                 _msgSender(),
-                commissionSettings.bridgeOwner,
+                cachedCommissionSettings.bridgeOwner,
                 commissionAmountBridgeOwner
             )
         );
@@ -484,7 +493,7 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
         (bool transferToBridgeOwner, ) = TOKEN.call(
             abi.encodeWithSelector(
                 TRANSFER_SELECTOR,
-                commissionSettings.bridgeOwner,
+                cachedCommissionSettings.bridgeOwner,
                 commissionAmountBridgeOwner
             )
         );
@@ -503,8 +512,8 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
     function _calculateCommissionInToken(uint256 amount) internal view returns (uint256, uint256) {
         CommissionSettings memory cachedCommissionSettings = commissionSettings;
 
-        if (commissionSettings.commissionType == CommissionType.PercentageTokens) {
-            uint256 commissionSum = amount* uint256(commissionSettings.convertTokenPercentage) / commissionSettings.pointOffsetShifter;
+        if (cachedCommissionSettings.commissionType == CommissionType.PercentageTokens) {
+            uint256 commissionSum = amount* uint256(cachedCommissionSettings.convertTokenPercentage) / cachedCommissionSettings.pointOffsetShifter;
             return (
                 _calculateCommissionBridgeOwnerProportion(commissionSum), 
                 commissionSum
@@ -512,7 +521,7 @@ abstract contract Commission is Ownable2Step, ReentrancyGuard {
         }
         return (
             _calculateCommissionBridgeOwnerProportion(
-                commissionSettings.fixedTokenCommission
+                cachedCommissionSettings.fixedTokenCommission
             ), 
             cachedCommissionSettings.fixedTokenCommission
         );
